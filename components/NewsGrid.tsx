@@ -2,8 +2,12 @@
 
 import NewsCard, { NewsItem } from './NewsCard';
 
-export default function NewsGrid() {
-  const newsItems: NewsItem[] = [
+interface NewsGridProps {
+  newsItems?: NewsItem[];
+}
+
+// Fallback dummy data
+const fallbackNewsItems: NewsItem[] = [
     {
       title: 'Anthropic Claude 4 Outperforms Human Experts in Medical Diagnosis',
       description: 'Latest benchmarks show Claude 4 achieving 98% accuracy in complex medical case analysis.',
@@ -12,6 +16,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=500&q=80',
       readTime: '5 min',
       author: 'Sarah Chen',
+      link: '#',
     },
     {
       title: 'AI-Generated Movies Hit $1B Box Office Milestone',
@@ -21,6 +26,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500&q=80',
       readTime: '6 min',
       author: 'Marcus Webb',
+      link: '#',
     },
     {
       title: 'Tesla Optimus Robots Now Working in 500+ Warehouses',
@@ -30,6 +36,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1561557944-6e7860d1a7eb?w=500&q=80',
       readTime: '7 min',
       author: 'Alex Kumar',
+      link: '#',
     },
     {
       title: 'AI Tutors Now Standard in 10,000+ Schools Globally',
@@ -39,6 +46,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&q=80',
       readTime: '4 min',
       author: 'Emma Liu',
+      link: '#',
     },
     {
       title: 'LangChain 2.0: The Ultimate Framework for AI Apps',
@@ -48,6 +56,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=500&q=80',
       readTime: '8 min',
       author: 'Dev Singh',
+      link: '#',
     },
     {
       title: 'Microsoft Copilot Now Writes 40% of Production Code',
@@ -57,6 +66,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1607706189992-eae578626c86?w=500&q=80',
       readTime: '5 min',
       author: 'Ryan Park',
+      link: '#',
     },
     {
       title: 'AI Discovers New Antibiotics That Kill Superbugs',
@@ -66,6 +76,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=500&q=80',
       readTime: '6 min',
       author: 'Dr. Lisa Wang',
+      link: '#',
     },
     {
       title: 'Runway Gen-4: Create Hollywood-Quality Videos from Text',
@@ -75,6 +86,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=500&q=80',
       readTime: '5 min',
       author: 'Jordan Blake',
+      link: '#',
     },
     {
       title: 'AI-Powered Smart Homes Cut Energy Usage by 60%',
@@ -84,6 +96,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1558002038-1055907df827?w=500&q=80',
       readTime: '4 min',
       author: 'Nina Patel',
+      link: '#',
     },
     {
       title: 'Goldman Sachs: AI Will Add $7 Trillion to Global GDP',
@@ -93,6 +106,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=500&q=80',
       readTime: '7 min',
       author: 'Michael Torres',
+      link: '#',
     },
     {
       title: 'Cursor IDE: GitHub Copilot Killer Reaches 5M Users',
@@ -102,6 +116,7 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1571171637578-41bc2dd41cd2?w=500&q=80',
       readTime: '6 min',
       author: 'Chris Anderson',
+      link: '#',
     },
     {
       title: 'Neuralink Patient Controls Computer with 95% Accuracy',
@@ -111,14 +126,18 @@ export default function NewsGrid() {
       image: 'https://images.unsplash.com/photo-1559757175-5700dde675bc?w=500&q=80',
       readTime: '8 min',
       author: 'Dr. James Wilson',
+      link: '#',
     },
-  ];
+];
+
+export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
+  const items = newsItems.length > 0 ? newsItems : fallbackNewsItems;
 
   return (
     <div className="space-y-8">
       {/* News Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-        {newsItems.slice(0, 6).map((item, index) => (
+        {items.slice(0, 6).map((item, index) => (
           <NewsCard key={index} news={item} />
         ))}
 
@@ -139,7 +158,7 @@ export default function NewsGrid() {
           </button>
         </div>
 
-        {newsItems.slice(6, 12).map((item, index) => (
+        {items.slice(6, 12).map((item, index) => (
           <NewsCard key={index + 6} news={item} />
         ))}
       </div>
