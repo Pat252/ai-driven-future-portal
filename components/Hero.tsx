@@ -29,6 +29,8 @@ const fallbackBigStory: NewsItem = {
   readTime: '8 min',
   author: 'Editorial Team',
   link: '#',
+  source: 'Editorial Team',
+  pubDate: new Date(),
 };
 
 // TrendingItem component with robust image fallback

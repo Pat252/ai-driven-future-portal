@@ -18,6 +18,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '5 min',
       author: 'Sarah Chen',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'AI-Generated Movies Hit $1B Box Office Milestone',
@@ -28,6 +30,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '6 min',
       author: 'Marcus Webb',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'Tesla Optimus Robots Now Working in 500+ Warehouses',
@@ -38,6 +42,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '7 min',
       author: 'Alex Kumar',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'AI Tutors Now Standard in 10,000+ Schools Globally',
@@ -48,6 +54,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '4 min',
       author: 'Emma Liu',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'LangChain 2.0: The Ultimate Framework for AI Apps',
@@ -58,6 +66,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '8 min',
       author: 'Dev Singh',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'Microsoft Copilot Now Writes 40% of Production Code',
@@ -68,6 +78,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '5 min',
       author: 'Ryan Park',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'AI Discovers New Antibiotics That Kill Superbugs',
@@ -78,6 +90,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '6 min',
       author: 'Dr. Lisa Wang',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'Runway Gen-4: Create Hollywood-Quality Videos from Text',
@@ -88,6 +102,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '5 min',
       author: 'Jordan Blake',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'AI-Powered Smart Homes Cut Energy Usage by 60%',
@@ -98,6 +114,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '4 min',
       author: 'Nina Patel',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'Goldman Sachs: AI Will Add $7 Trillion to Global GDP',
@@ -108,6 +126,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '7 min',
       author: 'Michael Torres',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'Cursor IDE: GitHub Copilot Killer Reaches 5M Users',
@@ -118,6 +138,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '6 min',
       author: 'Chris Anderson',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
     {
       title: 'Neuralink Patient Controls Computer with 95% Accuracy',
@@ -128,6 +150,8 @@ const fallbackNewsItems: NewsItem[] = [
       readTime: '8 min',
       author: 'Dr. James Wilson',
       link: '#',
+      source: 'Editorial',
+      pubDate: null,
     },
 ];
 
