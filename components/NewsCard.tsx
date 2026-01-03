@@ -12,6 +12,8 @@ export interface NewsItem {
   readTime: string;
   author: string;
   link: string;
+  source: string; // Source name (e.g., "TechCrunch", "MIT Tech Review")
+  pubDate: Date | null; // Actual publication date for sorting
 }
 
 interface NewsCardProps {

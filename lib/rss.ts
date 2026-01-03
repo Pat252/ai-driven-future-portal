@@ -20,14 +20,29 @@ const parser = new Parser({
   },
 });
 
-// Feed configuration with diverse sources
+// Feed configuration with diverse, reliable sources
 const FEED_URLS = [
+  // --- BREAKING AI (The "Heavy Hitters") ---
+  // We mix Startup news (TechCrunch) with Research (MIT) and Culture (Wired)
   { url: "https://techcrunch.com/category/artificial-intelligence/feed/", category: "Breaking AI", categoryColor: "bg-red-500", source: "TechCrunch" },
-  { url: "https://venturebeat.com/category/ai/feed/", category: "AI Economy", categoryColor: "bg-green-500", source: "VentureBeat" },
-  { url: "https://www.theverge.com/rss/index.xml", category: "Creative Tech", categoryColor: "bg-purple-500", source: "The Verge" },
+  { url: "https://www.technologyreview.com/topic/artificial-intelligence/feed", category: "Breaking AI", categoryColor: "bg-red-500", source: "MIT Tech Review" },
+  { url: "https://arstechnica.com/tag/ai/feed/", category: "Breaking AI", categoryColor: "bg-red-500", source: "Ars Technica" },
   { url: "https://www.wired.com/feed/tag/ai/latest/rss", category: "Breaking AI", categoryColor: "bg-red-500", source: "Wired" },
-  { url: "https://hackernoon.com/feed", category: "Toolbox", categoryColor: "bg-orange-500", source: "HackerNoon" },
+
+  // --- AI ECONOMY (Business & Enterprise) ---
+  // Replacing VentureBeat (which blocks us) with CNBC and ZDNet
+  { url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910", category: "AI Economy", categoryColor: "bg-green-500", source: "CNBC Tech" },
+  { url: "https://www.zdnet.com/topic/artificial-intelligence/rss.xml", category: "AI Economy", categoryColor: "bg-green-500", source: "ZDNet" },
+  { url: "https://fortune.com/feed/fortune-feeds/?id=3230629", category: "AI Economy", categoryColor: "bg-green-500", source: "Fortune" },
+
+  // --- CREATIVE TECH (Consumer & Design) ---
+  { url: "https://www.theverge.com/rss/index.xml", category: "Creative Tech", categoryColor: "bg-purple-500", source: "The Verge" },
   { url: "https://mashable.com/feeds/rss/all", category: "Creative Tech", categoryColor: "bg-purple-500", source: "Mashable" },
+  { url: "https://www.engadget.com/rss.xml", category: "Creative Tech", categoryColor: "bg-purple-500", source: "Engadget" },
+
+  // --- TOOLBOX (Dev & Code) ---
+  { url: "https://hackernoon.com/feed", category: "Toolbox", categoryColor: "bg-orange-500", source: "HackerNoon" },
+  { url: "https://dev.to/feed/tag/ai", category: "Toolbox", categoryColor: "bg-orange-500", source: "Dev.to" },
 ];
 
 // Fallback image pool for articles without images
@@ -279,7 +294,8 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
       }
 
       const articleTitle = sanitizeTitle(item.title || 'Untitled');
-      const pubDate = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
+      const pubDateString = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
+      const pubDate = parseRSSDate(pubDateString);
       
       items.push({
         title: articleTitle,
@@ -287,9 +303,11 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
         category: category,
         categoryColor: categoryColor,
         image: extractImage(item, articleTitle),
-        readTime: formatDate(pubDate),
+        readTime: formatDate(pubDateString),
         author: extractAuthor(item, source),
         link: link, // Guaranteed to be valid at this point
+        source: source, // Store source name for diversity
+        pubDate: pubDate, // Store actual date for sorting
       });
     }
 
@@ -342,27 +360,68 @@ export async function getNewsData(limit?: number): Promise<NewsItem[]> {
     console.log(`✅ Total items fetched: ${totalItems}`);
     console.log(`Breaking AI: ${itemsByCategory['Breaking AI'].length}, AI Economy: ${itemsByCategory['AI Economy'].length}, Creative Tech: ${itemsByCategory['Creative Tech'].length}, Toolbox: ${itemsByCategory['Toolbox'].length}`);
 
-    // Interleave items from each category (round-robin style)
+    // SMART INTERLEAVING: Round-robin by SOURCE within each category
+    // This prevents TechCrunch from dominating "Breaking AI"
+    const diversifiedByCategory: Record<string, NewsItem[]> = {};
+    
+    Object.keys(itemsByCategory).forEach(category => {
+      const categoryItems = itemsByCategory[category];
+      
+      // Group by source within this category
+      const itemsBySource: Record<string, NewsItem[]> = {};
+      categoryItems.forEach(item => {
+        if (!itemsBySource[item.source]) {
+          itemsBySource[item.source] = [];
+        }
+        itemsBySource[item.source].push(item);
+      });
+
+      // Sort each source's articles by date (newest first)
+      Object.keys(itemsBySource).forEach(source => {
+        itemsBySource[source].sort((a, b) => {
+          const dateA = a.pubDate?.getTime() || 0;
+          const dateB = b.pubDate?.getTime() || 0;
+          return dateB - dateA; // Newest first
+        });
+      });
+
+      // Round-robin interleaving by source
+      const mixedItems: NewsItem[] = [];
+      const sources = Object.keys(itemsBySource);
+      const maxItems = Math.max(...sources.map(s => itemsBySource[s].length));
+
+      for (let i = 0; i < maxItems; i++) {
+        for (const source of sources) {
+          if (itemsBySource[source][i]) {
+            mixedItems.push(itemsBySource[source][i]);
+          }
+        }
+      }
+
+      diversifiedByCategory[category] = mixedItems;
+    });
+
+    // Now interleave categories (Breaking AI, Economy, Creative, Toolbox)
     const interleaved: NewsItem[] = [];
     const maxLength = Math.max(
-      itemsByCategory['Breaking AI'].length,
-      itemsByCategory['AI Economy'].length,
-      itemsByCategory['Creative Tech'].length,
-      itemsByCategory['Toolbox'].length
+      diversifiedByCategory['Breaking AI']?.length || 0,
+      diversifiedByCategory['AI Economy']?.length || 0,
+      diversifiedByCategory['Creative Tech']?.length || 0,
+      diversifiedByCategory['Toolbox']?.length || 0
     );
 
     for (let i = 0; i < maxLength; i++) {
-      if (itemsByCategory['Breaking AI'][i]) {
-        interleaved.push(itemsByCategory['Breaking AI'][i]);
+      if (diversifiedByCategory['Breaking AI']?.[i]) {
+        interleaved.push(diversifiedByCategory['Breaking AI'][i]);
       }
-      if (itemsByCategory['AI Economy'][i]) {
-        interleaved.push(itemsByCategory['AI Economy'][i]);
+      if (diversifiedByCategory['AI Economy']?.[i]) {
+        interleaved.push(diversifiedByCategory['AI Economy'][i]);
       }
-      if (itemsByCategory['Creative Tech'][i]) {
-        interleaved.push(itemsByCategory['Creative Tech'][i]);
+      if (diversifiedByCategory['Creative Tech']?.[i]) {
+        interleaved.push(diversifiedByCategory['Creative Tech'][i]);
       }
-      if (itemsByCategory['Toolbox'][i]) {
-        interleaved.push(itemsByCategory['Toolbox'][i]);
+      if (diversifiedByCategory['Toolbox']?.[i]) {
+        interleaved.push(diversifiedByCategory['Toolbox'][i]);
       }
     }
 
