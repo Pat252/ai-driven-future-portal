@@ -314,7 +314,9 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
     const feed = await parser.parseURL(url);
     const items: NewsItem[] = [];
 
-    for (const item of feed.items.slice(0, 20)) {
+    // Deep Buffer Strategy: Fetch 50 items instead of 20 for better retention
+    // This keeps articles available for 2-3 days instead of 12 hours
+    for (const item of feed.items.slice(0, 50)) {
       // Extract and validate link - CRITICAL: filter out items without valid links
       const link = extractLink(item);
       if (!link) {
