@@ -1,6 +1,7 @@
 import Header from '@/components/Header';
 import Ticker from '@/components/Ticker';
 import NewsGrid from '@/components/NewsGrid';
+import MarketOverview from '@/components/MarketOverview';
 import { getNewsData } from '@/lib/rss';
 import { NewsItem } from '@/components/NewsCard';
 
@@ -55,6 +56,17 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           <h1 className="text-4xl font-bold mb-8 text-gray-900 dark:text-[#EDEDED]">
             {pageTitle}
           </h1>
+          
+          {/* Show Market Overview widget only on AI Economy page */}
+          {slug === 'ai-economy' && (
+            <div className="mb-8">
+              <p className="text-gray-600 dark:text-gray-400 text-lg mb-6">
+                Tracking the financial impact of Artificial Intelligence on global markets.
+              </p>
+              <MarketOverview />
+            </div>
+          )}
+          
           <NewsGrid newsItems={filteredNews} />
         </div>
       </main>
