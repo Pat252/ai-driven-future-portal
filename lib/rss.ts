@@ -29,24 +29,34 @@ const FEED_URLS = [
   { url: "https://arstechnica.com/tag/ai/feed/", category: "Breaking AI", categoryColor: "bg-red-500", source: "Ars Technica" },
   { url: "https://www.wired.com/feed/tag/ai/latest/rss", category: "Breaking AI", categoryColor: "bg-red-500", source: "Wired" },
 
-  // --- GEN AI (Agents, Cloud, Models & Tools) --- ✨ NEW SECTION ✨
-  // 1. The Models & Research Labs (The Source)
+  // --- GEN AI (Agents, Cloud, Models & Tools) --- ✨ BUILDER'S DASHBOARD ✨
+  // 1. The Models & Research Labs (Source of Truth)
+  { url: "https://openai.com/blog/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "OpenAI" },
+  { url: "https://developers.googleblog.com/feeds/posts/default", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Google Developers" }, // Covers Gemini, Antigravity & Nano Banana
   { url: "https://huggingface.co/blog/feed.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Hugging Face" },
-  { url: "https://simonwillison.net/tags/ai/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Simon Willison" },
-  
-  // 2. Cloud Infrastructure & Enterprise (Azure/AWS)
-  { url: "https://blogs.microsoft.com/ai/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Microsoft Azure AI" },
-  { url: "https://aws.amazon.com/blogs/machine-learning/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "AWS Machine Learning" },
-  
-  // 3. Agents, Orchestration & IDEs (The Builder Tools)
-  { url: "https://blog.langchain.dev/rss/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "LangChain Blog" },
-  { url: "https://blog.replit.com/feed.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Replit Blog" },
-  { url: "https://github.blog/category/ai-and-ml/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "GitHub Blog" },
-  { url: "https://www.cursor.com/blog/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Cursor IDE" },
-  
-  // 4. General GenAI Trends & Launches (Covers Midjourney, Voice, etc.)
+  { url: "https://www.deepmind.com/blog/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "DeepMind" },
+
+  // 2. The New IDEs & No-Code Builders (Replit, Bolt, v0)
+  { url: "https://blog.replit.com/feed.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Replit" },
+  { url: "https://github.blog/category/ai-and-ml/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "GitHub Copilot" },
+  { url: "https://vercel.com/blog/category/ai/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Vercel AI" }, // Covers v0
+
+  // 3. Agents & Orchestration (LangChain, n8n, AutoGen)
+  { url: "https://blog.langchain.dev/rss/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "LangChain" },
+  { url: "https://blog.n8n.io/rss/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "n8n Automation" },
+  { url: "https://microsoft.github.io/autogen/blog/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "AutoGen" },
+
+  // 4. Voice & Multimodal AI
+  { url: "https://www.assemblyai.com/blog/rss/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "AssemblyAI" }, // Voice AI
+  { url: "https://stability.ai/news/rss", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Stability AI" }, // Image/Video Gen
+
+  // 5. Cloud Infrastructure (Azure / AWS)
+  { url: "https://blogs.microsoft.com/ai/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Azure AI" },
+  { url: "https://aws.amazon.com/blogs/machine-learning/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "AWS ML" },
+
+  // 6. General Trends & Industry News
   { url: "https://techcrunch.com/tag/generative-ai/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "TC GenAI" },
-  { url: "https://www.marktechpost.com/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "MarkTechPost" },
+  { url: "https://simonwillison.net/atom/everything/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Simon Willison" },
 
   // --- AI ECONOMY (Business & Enterprise) ---
   // Replacing VentureBeat (which blocks us) with CNBC and ZDNet
