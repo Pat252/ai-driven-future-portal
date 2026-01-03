@@ -4,6 +4,9 @@ import NewsGrid from '@/components/NewsGrid';
 import { getNewsData } from '@/lib/rss';
 import { NewsItem } from '@/components/NewsCard';
 
+// Revalidate every hour (3600 seconds) - ISR
+export const revalidate = 3600;
+
 // Map URL slugs to category names
 const slugToCategory: Record<string, string> = {
   'breaking-ai': 'Breaking AI',

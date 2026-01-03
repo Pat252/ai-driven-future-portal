@@ -42,10 +42,10 @@ export default function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-sm font-medium transition-colors ${
+                className={`text-base font-bold transition-all duration-200 ${
                   isActive(link.category)
-                    ? 'text-[#0070F3]'
-                    : 'text-gray-400 hover:text-white dark:hover:text-[#EDEDED]'
+                    ? 'text-[#0070F3] underline underline-offset-4'
+                    : 'text-gray-700 dark:text-gray-300 hover:text-[#0070F3] dark:hover:text-[#0070F3] hover:underline hover:underline-offset-4'
                 }`}
               >
                 {link.label}

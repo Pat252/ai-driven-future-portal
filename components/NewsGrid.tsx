@@ -174,7 +174,7 @@ export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
   return (
     <div className="space-y-8">
       {/* News Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-12">
         {items.slice(0, 6).map((item, index) => (
           <NewsCard key={index} news={item} />
         ))}

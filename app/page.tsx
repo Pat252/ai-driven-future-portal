@@ -5,6 +5,9 @@ import NewsGrid from '@/components/NewsGrid';
 import { getNewsData } from '@/lib/rss';
 import { NewsItem } from '@/components/NewsCard';
 
+// Revalidate every hour (3600 seconds) - ISR
+export const revalidate = 3600;
+
 export default async function Home() {
   let newsData: NewsItem[] = [];
   
@@ -24,17 +27,12 @@ export default async function Home() {
     <div className="min-h-screen bg-white dark:bg-[#0A0A0A] text-gray-900 dark:text-[#EDEDED] transition-colors w-full">
       <Header />
       <Ticker />
-      <main className="w-full flex-1 py-8">
+      <main className="w-full flex-1 py-8 pb-16">
         <div className="center-container">
           <Hero bigStory={bigStory} trending={trending} />
           <NewsGrid newsItems={newsData} />
         </div>
       </main>
-      <footer className="w-full border-t border-gray-200 dark:border-white/10 py-8 mt-16">
-        <div className="center-container text-center text-sm text-gray-600 dark:text-white/60">
-          © 2026 AI Driven Future. Powered by the future.
-        </div>
-      </footer>
     </div>
   );
 }
