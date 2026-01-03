@@ -53,12 +53,9 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Theme Toggle + CTA Button */}
+          {/* Theme Toggle */}
           <div className="flex items-center gap-4">
             <ThemeToggle />
-            <button className="bg-[#0070F3] hover:bg-[#0070F3]/90 text-white px-6 py-2 rounded-full text-sm font-medium transition-colors">
-              Get Deep Intent
-            </button>
           </div>
       </div>
     </header>

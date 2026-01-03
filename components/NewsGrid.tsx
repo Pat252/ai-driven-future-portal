@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import NewsCard, { NewsItem } from './NewsCard';
 
 interface NewsGridProps {
@@ -132,6 +133,43 @@ const fallbackNewsItems: NewsItem[] = [
 
 export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
   const items = newsItems.length > 0 ? newsItems : fallbackNewsItems;
+  const [email, setEmail] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+
+    setIsLoading(true);
+    setIsSuccess(false);
+
+    try {
+      const response = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setIsSuccess(true);
+        setEmail('');
+        setTimeout(() => setIsSuccess(false), 5000);
+      } else {
+        console.error('Subscription error:', data.error);
+        alert(data.error || 'Something went wrong. Please try again.');
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
+      alert('Something went wrong. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -148,14 +186,30 @@ export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
           <p className="text-gray-600 dark:text-white/70 mb-6 text-sm">
             Get the latest AI news delivered to your inbox every morning.
           </p>
-          <input
-            type="email"
-            placeholder="your@email.com"
-            className="w-full bg-white/90 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-lg px-4 py-3 mb-3 text-sm focus:outline-none focus:border-[#0070F3] transition-colors text-gray-900 dark:text-[#EDEDED] placeholder-gray-500 dark:placeholder-white/50"
-          />
-          <button className="w-full bg-[#0070F3] hover:bg-[#0070F3]/90 text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors">
-            Subscribe Now
-          </button>
+          {isSuccess ? (
+            <div className="w-full text-center py-4">
+              <p className="text-lg font-medium text-gray-900 dark:text-[#EDEDED]">Welcome aboard! 🚀</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubscribe} className="w-full">
+              <input
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+                className="w-full bg-white/90 dark:bg-white/10 border border-gray-300 dark:border-white/20 rounded-lg px-4 py-3 mb-3 text-sm focus:outline-none focus:border-[#0070F3] transition-colors text-gray-900 dark:text-[#EDEDED] placeholder-gray-500 dark:placeholder-white/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                required
+              />
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-[#0070F3] hover:bg-[#0070F3]/90 text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Joining...' : 'Subscribe Now'}
+              </button>
+            </form>
+          )}
         </div>
 
         {items.slice(6, 12).map((item, index) => (
@@ -163,29 +217,6 @@ export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
         ))}
       </div>
 
-      {/* Growth Feature 2: Deep Intent Banner (After 2nd row) */}
-      <div className="bg-gradient-to-r from-[#0070F3]/30 via-purple-500/30 to-pink-500/30 backdrop-blur-sm border border-[#0070F3]/50 dark:border-[#0070F3]/50 border-blue-200 rounded-2xl p-8 md:p-12 text-center my-12 shadow-md dark:shadow-none">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-5xl mb-4">🧠</div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-[#EDEDED]">
-            Unlock Deep Intent Analysis
-          </h2>
-          <p className="text-gray-700 dark:text-white/80 text-lg mb-6">
-            Go beyond headlines. Our AI analyzes market trends, predicts disruptions, and gives you actionable insights before the competition.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="bg-[#0070F3] hover:bg-[#0070F3]/90 text-white px-8 py-4 rounded-full text-base font-medium transition-colors">
-              Start Free Trial
-            </button>
-            <button className="bg-white/90 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20 text-gray-900 dark:text-white px-8 py-4 rounded-full text-base font-medium transition-colors border border-gray-300 dark:border-white/20">
-              Watch Demo
-            </button>
-          </div>
-          <p className="text-gray-600 dark:text-white/50 text-sm mt-4">
-            No credit card required • 14-day free trial
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
