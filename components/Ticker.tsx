@@ -4,23 +4,15 @@ import { useEffect, useState } from 'react';
 type TickerItem = {
   label: string;
   value: string;
-  change?: string; // e.g. "+5.2%"
-  isLive?: boolean; // Green dot for live data
-  isNegative?: boolean; // Red text if stock is down
+  change: string;
+  isNegative: boolean;
+  isLive?: boolean;
 };
 
 export default function Ticker() {
-  // Initial State: Starts with your static news while data loads
-  const [items, setItems] = useState<TickerItem[]>([
-    // --- STATIC "AI CULTURE" METRICS ---
-    { label: 'Arena Leader', value: 'Claude 3.5 Sonnet' },
-    { label: 'H100 Spot Price', value: '~$25,000' },
-    { label: 'Voxyte Waitlist', value: '1,245' },
-    { label: 'Global Compute', value: 'Shortage Critical' },
-    { label: 'GPT-5', value: 'Rumored Q4 2025' },
-  ]);
+  const [items, setItems] = useState<TickerItem[]>([]);
 
-  // 1. Fetch Real Crypto Data (CoinGecko - No Key Needed)
+  // 1. FETCH LIVE CRYPTO (CoinGecko)
   const fetchCrypto = async () => {
     try {
       const res = await fetch(
@@ -32,16 +24,16 @@ export default function Ticker() {
         {
           label: 'BTC',
           value: `$${data.bitcoin.usd.toLocaleString()}`,
-          change: `${data.bitcoin.usd_24h_change.toFixed(1)}%`,
-          isLive: true,
+          change: `${data.bitcoin.usd_24h_change.toFixed(2)}%`,
           isNegative: data.bitcoin.usd_24h_change < 0,
+          isLive: true,
         },
         {
-          label: 'FET (AI)',
-          value: `$${data['fetch-ai'].usd}`,
-          change: `${data['fetch-ai'].usd_24h_change.toFixed(1)}%`,
-          isLive: true,
+          label: 'FET (ASI Alliance)', 
+          value: `$${data['fetch-ai'].usd.toFixed(2)}`,
+          change: `${data['fetch-ai'].usd_24h_change.toFixed(2)}%`,
           isNegative: data['fetch-ai'].usd_24h_change < 0,
+          isLive: true,
         },
       ];
     } catch (error) {
@@ -50,7 +42,7 @@ export default function Ticker() {
     }
   };
 
-  // 2. Fetch Real Stock Data (Finnhub - Uses Key)
+  // 2. FETCH LIVE STOCKS (Finnhub)
   const fetchStock = async (symbol: string, name: string) => {
     try {
       const apiKey = process.env.NEXT_PUBLIC_FINNHUB_API_KEY;
@@ -60,99 +52,113 @@ export default function Ticker() {
         `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${apiKey}`
       );
       const data = await res.json();
-      // Finnhub returns 'c' for Current Price, 'dp' for Percent Change
+      
       if (!data.c) return null;
+      
       return {
         label: name,
         value: `$${data.c.toFixed(2)}`,
-        change: `${data.dp.toFixed(1)}%`,
-        isLive: true,
+        change: `${data.dp.toFixed(2)}%`,
         isNegative: data.dp < 0,
+        isLive: true,
       };
     } catch (error) {
-      console.error('Stock Fetch Error:', error);
       return null;
     }
   };
 
-  // 3. Master Update Function
   const updateTicker = async () => {
-    // Run fetches in parallel for speed
+    // A. Fetch Live Data
     const cryptoItems = await fetchCrypto();
-    const nvdaItem = await fetchStock('NVDA', 'Nvidia');
-    const msftItem = await fetchStock('MSFT', 'Microsoft');
+    const nvda = await fetchStock('NVDA', 'NVIDIA');
+    
+    // B. Define Editorial/News Lines
+    const editorialItems: TickerItem[] = [
+      {
+        label: 'BREAKING',
+        value: "OpenAI 'Operator' Agent Leaked",
+        change: 'Rumor',
+        isNegative: false,
+      },
+      {
+        label: 'INDUSTRY ALERT',
+        value: 'HBM3e Chip Supply Sold Out',
+        change: '2027 Delay',
+        isNegative: true,
+      },
+      {
+        label: 'CES 2026',
+        value: 'Gemini 3.0 Flash Launch',
+        change: 'Confirmed',
+        isNegative: false,
+      }
+    ];
 
-    const newLiveItems = [...cryptoItems];
-    if (nvdaItem) newLiveItems.push(nvdaItem);
-    if (msftItem) newLiveItems.push(msftItem);
+    // C. Combine
+    const newItems: TickerItem[] = [];
+    
+    if (nvda) newItems.push(nvda);
+    newItems.push(editorialItems[0]); 
+    newItems.push(...cryptoItems);
+    newItems.push(editorialItems[1]);
+    newItems.push(editorialItems[2]);
 
-    // Merge: Live items first, then preserve the static items
-    setItems((prev) => {
-      const staticItems = prev.filter((i) => !i.isLive);
-      return [...newLiveItems, ...staticItems];
-    });
+    setItems(newItems);
   };
 
-  // 4. Effect Loop: Run on mount + Every 1 Hour
   useEffect(() => {
-    updateTicker(); // Run instantly on load
-
-    const ONE_HOUR = 3600000;
-    const interval = setInterval(updateTicker, ONE_HOUR);
+    updateTicker();
+    const interval = setInterval(updateTicker, 60000); 
     return () => clearInterval(interval);
   }, []);
 
+  if (items.length === 0) return null;
+
   return (
-    <div className="w-full bg-gray-50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10 overflow-hidden transition-colors">
-      <div className="relative flex">
-        <div className="animate-scroll flex whitespace-nowrap">
-          {/* Duplicate items 3x for seamless loop */}
-          {[...items, ...items, ...items].map((item, index) => (
+    // CONTAINER: ADAPTIVE COLORS (Silver Track in Light Mode / Black in Dark Mode)
+    <div className="w-full bg-gray-100 dark:bg-black border-b border-gray-300 dark:border-white/10 overflow-hidden z-50 h-10 flex items-center transition-colors duration-300">
+      <div className="relative flex w-full">
+        <div className="animate-scroll flex whitespace-nowrap hover:pause">
+          {[...items, ...items, ...items, ...items].map((item, index) => (
             <div key={index} className="inline-flex items-center text-sm mx-8">
-              {/* Status Dot: Green Pulse (Live) or Blue Static */}
-              <span
-                className={`w-1.5 h-1.5 rounded-full mr-3 ${
-                  item.isLive
-                    ? 'bg-green-500 animate-pulse'
-                    : 'bg-blue-500'
-                }`}
-              ></span>
-              {/* Label */}
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mr-2">
-                {item.label}:
+              {/* LIVE DOT: Green Pulse */}
+              {item.isLive ? (
+                <span className="relative flex h-2 w-2 mr-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
+                </span>
+              ) : (
+                <span className="w-1.5 h-1.5 rounded-full mr-3 bg-blue-500"></span>
+              )}
+              
+              {/* LABEL: Adaptive Text (Gray-500 in Light / Gray-400 in Dark) */}
+              <span className="font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest mr-2 text-[10px]">
+                {item.label}
               </span>
-              {/* Value */}
-              <span className="text-sm font-bold text-gray-900 dark:text-white">
+              
+              {/* VALUE: Adaptive Text (Black in Light / White in Dark) */}
+              <span className="font-bold text-gray-900 dark:text-white mr-1">
                 {item.value}
               </span>
-              {/* Change Indicator (Green or Red) */}
-              {item.change && (
-                <span
-                  className={`ml-1 text-xs ${
-                    item.isNegative ? 'text-red-500' : 'text-green-500'
-                  }`}
-                >
-                  ({item.change})
-                </span>
-              )}
+              
+              {/* CHANGE: Green/Red is always visible on both */}
+              <span className={`text-[10px] font-bold ${item.isNegative ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500'}`}>
+                {item.change}
+              </span>
             </div>
           ))}
         </div>
       </div>
       <style jsx>{`
         .animate-scroll {
-          animation: scroll 40s linear infinite;
+          animation: scroll 35s linear infinite;
         }
-        .animate-scroll:hover {
+        .hover\:pause:hover {
           animation-play-state: paused;
         }
         @keyframes scroll {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
         }
       `}</style>
     </div>
