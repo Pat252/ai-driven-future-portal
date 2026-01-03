@@ -29,6 +29,25 @@ const FEED_URLS = [
   { url: "https://arstechnica.com/tag/ai/feed/", category: "Breaking AI", categoryColor: "bg-red-500", source: "Ars Technica" },
   { url: "https://www.wired.com/feed/tag/ai/latest/rss", category: "Breaking AI", categoryColor: "bg-red-500", source: "Wired" },
 
+  // --- GEN AI (Agents, Cloud, Models & Tools) --- ✨ NEW SECTION ✨
+  // 1. The Models & Research Labs (The Source)
+  { url: "https://huggingface.co/blog/feed.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Hugging Face" },
+  { url: "https://simonwillison.net/tags/ai/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Simon Willison" },
+  
+  // 2. Cloud Infrastructure & Enterprise (Azure/AWS)
+  { url: "https://blogs.microsoft.com/ai/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Microsoft Azure AI" },
+  { url: "https://aws.amazon.com/blogs/machine-learning/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "AWS Machine Learning" },
+  
+  // 3. Agents, Orchestration & IDEs (The Builder Tools)
+  { url: "https://blog.langchain.dev/rss/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "LangChain Blog" },
+  { url: "https://blog.replit.com/feed.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Replit Blog" },
+  { url: "https://github.blog/category/ai-and-ml/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "GitHub Blog" },
+  { url: "https://www.cursor.com/blog/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Cursor IDE" },
+  
+  // 4. General GenAI Trends & Launches (Covers Midjourney, Voice, etc.)
+  { url: "https://techcrunch.com/tag/generative-ai/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "TC GenAI" },
+  { url: "https://www.marktechpost.com/feed/", category: "Gen AI", categoryColor: "bg-cyan-500", source: "MarkTechPost" },
+
   // --- AI ECONOMY (Business & Enterprise) ---
   // Replacing VentureBeat (which blocks us) with CNBC and ZDNet
   { url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910", category: "AI Economy", categoryColor: "bg-green-500", source: "CNBC Tech" },
@@ -335,6 +354,7 @@ export async function getNewsData(limit?: number): Promise<NewsItem[]> {
     // Collect items by category for better interleaving
     const itemsByCategory: Record<string, NewsItem[]> = {
       'Breaking AI': [],
+      'Gen AI': [],
       'AI Economy': [],
       'Creative Tech': [],
       'Toolbox': [],
@@ -358,7 +378,7 @@ export async function getNewsData(limit?: number): Promise<NewsItem[]> {
     });
 
     console.log(`✅ Total items fetched: ${totalItems}`);
-    console.log(`Breaking AI: ${itemsByCategory['Breaking AI'].length}, AI Economy: ${itemsByCategory['AI Economy'].length}, Creative Tech: ${itemsByCategory['Creative Tech'].length}, Toolbox: ${itemsByCategory['Toolbox'].length}`);
+    console.log(`Breaking AI: ${itemsByCategory['Breaking AI'].length}, Gen AI: ${itemsByCategory['Gen AI'].length}, AI Economy: ${itemsByCategory['AI Economy'].length}, Creative Tech: ${itemsByCategory['Creative Tech'].length}, Toolbox: ${itemsByCategory['Toolbox'].length}`);
 
     // SMART INTERLEAVING: Round-robin by SOURCE within each category
     // This prevents TechCrunch from dominating "Breaking AI"
@@ -401,10 +421,11 @@ export async function getNewsData(limit?: number): Promise<NewsItem[]> {
       diversifiedByCategory[category] = mixedItems;
     });
 
-    // Now interleave categories (Breaking AI, Economy, Creative, Toolbox)
+    // Now interleave categories (Breaking AI, Gen AI, Economy, Creative, Toolbox)
     const interleaved: NewsItem[] = [];
     const maxLength = Math.max(
       diversifiedByCategory['Breaking AI']?.length || 0,
+      diversifiedByCategory['Gen AI']?.length || 0,
       diversifiedByCategory['AI Economy']?.length || 0,
       diversifiedByCategory['Creative Tech']?.length || 0,
       diversifiedByCategory['Toolbox']?.length || 0
@@ -413,6 +434,9 @@ export async function getNewsData(limit?: number): Promise<NewsItem[]> {
     for (let i = 0; i < maxLength; i++) {
       if (diversifiedByCategory['Breaking AI']?.[i]) {
         interleaved.push(diversifiedByCategory['Breaking AI'][i]);
+      }
+      if (diversifiedByCategory['Gen AI']?.[i]) {
+        interleaved.push(diversifiedByCategory['Gen AI'][i]);
       }
       if (diversifiedByCategory['AI Economy']?.[i]) {
         interleaved.push(diversifiedByCategory['AI Economy'][i]);

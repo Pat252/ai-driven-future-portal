@@ -10,6 +10,7 @@ export default function Header() {
 
   const navLinks = [
     { href: '/category/breaking-ai', label: 'Breaking AI', category: 'breaking-ai' },
+    { href: '/category/gen-ai', label: 'Gen AI', category: 'gen-ai' },
     { href: '/category/ai-economy', label: 'Economy', category: 'ai-economy' },
     { href: '/category/creative-tech', label: 'Creative Tech', category: 'creative-tech' },
     { href: '/category/toolbox', label: 'Toolbox', category: 'toolbox' },

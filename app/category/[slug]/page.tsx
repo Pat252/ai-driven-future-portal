@@ -10,6 +10,7 @@ export const revalidate = 3600;
 // Map URL slugs to category names
 const slugToCategory: Record<string, string> = {
   'breaking-ai': 'Breaking AI',
+  'gen-ai': 'Gen AI',
   'ai-economy': 'AI Economy',
   'creative-tech': 'Creative Tech',
   'toolbox': 'Toolbox',
@@ -18,6 +19,7 @@ const slugToCategory: Record<string, string> = {
 // Map category names to display titles
 const categoryToTitle: Record<string, string> = {
   'Breaking AI': 'Latest News in Breaking AI',
+  'Gen AI': 'Latest News in Gen AI',
   'AI Economy': 'Latest News in AI Economy',
   'Creative Tech': 'Latest News in Creative Tech',
   'Toolbox': 'Latest News in Toolbox',
