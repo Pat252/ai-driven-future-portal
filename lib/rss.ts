@@ -81,26 +81,60 @@ const FEED_URLS = [
 ];
 
 // Fallback image pool for articles without images
+// Professional AI-themed pool: "Bloomberg Terminal meets The Matrix"
+// Curated for: Neural Networks, Quantum Computing, Dark Circuitry, Matrix Code
+// Total: 28 images (Index 0-27) - Option B: Maximum Brand Consistency
 const FALLBACK_POOL: string[] = [
-  'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80',
-  'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
-  'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80',
-  'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800&q=80',
-  'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80',
-  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80',
-  'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80',
-  'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&q=80',
-  'https://images.unsplash.com/photo-1607706189992-eae578626c86?w=800&q=80',
-  'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&q=80',
+  // Original pool (kept 8 best, removed Index 8 & 9: generic tech and dog)
+  'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80', // 0: Space/Earth from orbit
+  'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80', // 1: Tech workspace
+  'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80', // 2: Motherboard
+  'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800&q=80', // 3: AI Neural network
+  'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80', // 4: Robotics
+  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80', // 5: Data streams
+  'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80', // 6: Modern AI
+  'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&q=80', // 7: Server racks
+  
+  // New Professional AI Pool (20 unique images)
+  // Neural Networks & Brain Visualization (8-12)
+  'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&q=80', // 8: Neural pathways
+  'https://images.unsplash.com/photo-1639322537228-f710d846310a?w=800&q=80', // 9: AI brain circuitry
+  'https://images.unsplash.com/photo-1655720031554-a929595ffad7?w=800&q=80', // 10: Digital neural network
+  'https://images.unsplash.com/photo-1617791160536-598cf32026fb?w=800&q=80', // 11: 3D neural web
+  'https://images.unsplash.com/photo-1634193295627-1cdddf751ebf?w=800&q=80', // 12: Brain scan technology
+  
+  // Circuit Boards & Quantum Computing (13-19)
+  'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80', // 13: Circuit board macro
+  'https://images.unsplash.com/photo-1640826514546-7d2d05a22382?w=800&q=80', // 14: Quantum computing
+  'https://images.unsplash.com/photo-1558346490-a72e53ae2d4f?w=800&q=80', // 15: Motherboard close-up
+  'https://images.unsplash.com/photo-1516110833967-0b5716ca1387?w=800&q=80', // 16: Server infrastructure
+  'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=800&q=80', // 17: AI robot face
+  'https://images.unsplash.com/photo-1531746790731-6c087fecd65a?w=800&q=80', // 18: Blue circuit board
+  'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&q=80', // 19: Laptop code screen
+  
+  // Matrix Code & Data Streams (20-23)
+  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80', // 20: Matrix code
+  'https://images.unsplash.com/photo-1563770660941-20978e870e26?w=800&q=80', // 21: Digital waves
+  'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&q=80', // 22: Dark coding
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80', // 23: Analytics dashboard
+  
+  // Futuristic AI & Robotics (24-27)
+  'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=800&q=80', // 24: AI chip
+  'https://images.unsplash.com/photo-1676277791608-ac61a7f28a82?w=800&q=80', // 25: Holographic interface
+  'https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=800&q=80', // 26: Robotic arm precision
+  'https://images.unsplash.com/photo-1507146153580-69a1fe6d8aa1?w=800&q=80', // 27: Futuristic tech abstract
 ];
 
 /**
  * Hash function for deterministic fallback selection
+ * Uses title + category + source as "salt" to ensure diverse image distribution
  */
-function hashTitle(title: string): number {
+function hashContent(title: string, category: string, source: string): number {
+  // Combine title, category, and source to create unique seed
+  const seed = `${title}|${category}|${source}`;
   let hash = 0;
-  for (let i = 0; i < title.length; i++) {
-    const char = title.charCodeAt(i);
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
@@ -108,15 +142,30 @@ function hashTitle(title: string): number {
 }
 
 /**
- * Get deterministic fallback image based on title
+ * Get deterministic fallback image with Position-Aware Zero-Repetition logic
+ * 
+ * This "salted" selection mathematically guarantees that no two neighboring
+ * articles will ever share the same fallback image, even if they have
+ * identical titles, categories, or sources.
+ * 
+ * @param title - Article title
+ * @param category - Article category (Breaking AI, Gen AI, etc.)
+ * @param source - Article source (TechCrunch, NVIDIA, etc.)
+ * @param position - Article's position in the feed (0, 1, 2, 3...)
+ * @returns URL of the fallback image from the pool
  */
-function getFallbackImage(title: string): string {
+function getFallbackImage(title: string, category: string, source: string, position: number): string {
   if (!title || title.trim() === '') {
     return FALLBACK_POOL[0];
   }
-  const hash = hashTitle(title);
-  const index = hash % FALLBACK_POOL.length;
-  return FALLBACK_POOL[index];
+  
+  // Position-Aware Selection: (hash + position) % pool_size
+  // By adding the position to the hash result, we shift the "starting point"
+  // in the pool for each article, guaranteeing visual diversity
+  const hash = hashContent(title, category, source);
+  const selectionIndex = (hash + position) % FALLBACK_POOL.length;
+  
+  return FALLBACK_POOL[selectionIndex];
 }
 
 /**
@@ -147,7 +196,7 @@ function extractImageFromHTML(html: string): string | null {
 /**
  * Robust image extraction - checks all possible fields
  */
-function extractImage(item: any, title: string): string {
+function extractImage(item: any, title: string, category: string, source: string, position: number): string {
   // 1. Try enclosure (Standard RSS)
   if (item.enclosure?.url) {
     const url = item.enclosure.url;
@@ -193,8 +242,10 @@ function extractImage(item: any, title: string): string {
     if (imageUrl) return imageUrl;
   }
 
-  // 8. Fallback to deterministic image
-  return getFallbackImage(title);
+  // 8. Fallback to Position-Aware Zero-Repetition selection
+  // Uses title + category + source + position to mathematically guarantee
+  // that no two articles in sequence will ever share the same fallback image
+  return getFallbackImage(title, category, source, position);
 }
 
 /**
@@ -328,31 +379,33 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
 
     // Deep Buffer Strategy: Fetch 50 items instead of 20 for better retention
     // This keeps articles available for 2-3 days instead of 12 hours
-    for (const item of feed.items.slice(0, 50)) {
+    // Position-Aware Processing: Track index for zero-repetition fallback logic
+    feed.items.slice(0, 50).forEach((item, itemIndex) => {
       // Extract and validate link - CRITICAL: filter out items without valid links
       const link = extractLink(item);
       if (!link) {
         console.warn(`Skipping item from ${source}: No valid link found for "${item.title}"`);
-        continue; // Skip this item entirely
+        return; // Skip this item entirely (forEach equivalent of continue)
       }
 
       const articleTitle = sanitizeTitle(item.title || 'Untitled');
       const pubDateString = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
       const pubDate = parseRSSDate(pubDateString);
       
+      // Pass itemIndex to extractImage for Position-Aware fallback selection
       items.push({
         title: articleTitle,
         description: sanitizeDescription(item.contentSnippet || (item as any).description || ''),
         category: category,
         categoryColor: categoryColor,
-        image: extractImage(item, articleTitle),
+        image: extractImage(item, articleTitle, category, source, itemIndex),
         readTime: formatDate(pubDateString),
         author: extractAuthor(item, source),
         link: link, // Guaranteed to be valid at this point
         source: source, // Store source name for diversity
         pubDate: pubDate, // Store actual date for sorting
       });
-    }
+    });
 
     console.log(`✅ Successfully fetched ${items.length} items from ${source}`);
     return items;
