@@ -1,0 +1,35 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="og-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0070F3;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#7928CA;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#FF0080;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0070F3;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#og-grad)"/>
+  
+  <!-- Neural Network Pattern -->
+  <circle cx="200" cy="150" r="8" fill="white" opacity="0.3"/>
+  <circle cx="350" cy="100" r="8" fill="white" opacity="0.3"/>
+  <circle cx="450" cy="180" r="8" fill="white" opacity="0.3"/>
+  <circle cx="750" cy="120" r="8" fill="white" opacity="0.3"/>
+  <circle cx="900" cy="170" r="8" fill="white" opacity="0.3"/>
+  <circle cx="1000" cy="100" r="8" fill="white" opacity="0.3"/>
+  
+  <line x1="200" y1="150" x2="350" y2="100" stroke="white" stroke-width="1" opacity="0.2"/>
+  <line x1="350" y1="100" x2="450" y2="180" stroke="white" stroke-width="1" opacity="0.2"/>
+  <line x1="450" y1="180" x2="750" y2="120" stroke="white" stroke-width="1" opacity="0.2"/>
+  <line x1="750" y1="120" x2="900" y2="170" stroke="white" stroke-width="1" opacity="0.2"/>
+  <line x1="900" y1="170" x2="1000" y2="100" stroke="white" stroke-width="1" opacity="0.2"/>
+  
+  <!-- Main Content -->
+  <text x="600" y="280" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white" text-anchor="middle">AI DRIVEN FUTURE</text>
+  <text x="600" y="340" font-family="Arial, sans-serif" font-size="32" fill="rgba(255,255,255,0.9)" text-anchor="middle">Bloomberg Terminal meets The Matrix</text>
+  <text x="600" y="420" font-family="Arial, sans-serif" font-size="28" fill="rgba(255,255,255,0.8)" text-anchor="middle">Real-Time AI News & Insights</text>
+  
+  <!-- Domain -->
+  <rect x="450" y="480" width="300" height="60" rx="30" fill="rgba(255,255,255,0.15)" stroke="white" stroke-width="2"/>
+  <text x="600" y="520" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle">www.aidrivenfuture.ca</text>
+</svg>
+

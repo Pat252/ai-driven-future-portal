@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { getDefaultPlaceholder } from '@/lib/image-utils';
 
 export interface NewsItem {
   title: string;
@@ -20,20 +21,28 @@ interface NewsCardProps {
   news: NewsItem;
 }
 
-// Fallback image pool for robust error handling
-const FALLBACK_POOL = [
-  'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80', // AI/Robotics
-  'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&q=80', // AI Tech
-  'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=400&q=80', // Neural Networks
-  'https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=400&q=80', // Circuits
-  'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80', // Technology
-  'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&q=80', // Futuristic
-];
-
 export default function NewsCard({ news }: NewsCardProps) {
-  const [imgSrc, setImgSrc] = useState(news.image || FALLBACK_POOL[0]);
+  // ============================================================================
+  // 100% LOCAL-ONLY STRATEGY
+  // ============================================================================
+  // - ALL images are local (from /public/assets/images/)
+  // - NO external fetching
+  // - NO Unsplash, no RSS scraping
+  // - Simple fallback: Local category image → Default placeholder
+  // ============================================================================
+  
+  const defaultFallback = getDefaultPlaceholder();
+  const [imgSrc, setImgSrc] = useState(news.image || defaultFallback);
   const link = news.link || '#';
   
+  // Simple fallback: If local image fails, use default placeholder
+  const handleImageError = () => {
+    if (imgSrc !== defaultFallback) {
+      console.log('[NewsCard] Image failed, using default placeholder');
+      setImgSrc(defaultFallback);
+    }
+  };
+
   return (
     <a 
       href={link} 
@@ -47,7 +56,10 @@ export default function NewsCard({ news }: NewsCardProps) {
           alt={news.title}
           fill
           className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
-          onError={() => setImgSrc(FALLBACK_POOL[Math.floor(Math.random() * FALLBACK_POOL.length)])}
+          onError={handleImageError}
+          loading="lazy"
+          quality={85}
+          unoptimized={imgSrc.endsWith('.svg')}
         />
         {/* Glassmorphism Category Tag */}
         <div className="absolute top-3 left-3">

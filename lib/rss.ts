@@ -80,172 +80,73 @@ const FEED_URLS = [
   { url: "https://machinelearningmastery.com/feed", category: "Toolbox", categoryColor: "bg-orange-500", source: "ML Mastery" },
 ];
 
-// Fallback image pool for articles without images
-// Professional AI-themed pool: "Bloomberg Terminal meets The Matrix"
-// Curated for: Neural Networks, Quantum Computing, Dark Circuitry, Matrix Code
-// Total: 28 images (Index 0-27) - Option B: Maximum Brand Consistency
-const FALLBACK_POOL: string[] = [
-  // Original pool (kept 8 best, removed Index 8 & 9: generic tech and dog)
-  'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&q=80', // 0: Space/Earth from orbit
-  'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80', // 1: Tech workspace
-  'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&q=80', // 2: Motherboard
-  'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=800&q=80', // 3: AI Neural network
-  'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&q=80', // 4: Robotics
-  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80', // 5: Data streams
-  'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80', // 6: Modern AI
-  'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&q=80', // 7: Server racks
-  
-  // New Professional AI Pool (20 unique images)
-  // Neural Networks & Brain Visualization (8-12)
-  'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=800&q=80', // 8: Neural pathways
-  'https://images.unsplash.com/photo-1639322537228-f710d846310a?w=800&q=80', // 9: AI brain circuitry
-  'https://images.unsplash.com/photo-1655720031554-a929595ffad7?w=800&q=80', // 10: Digital neural network
-  'https://images.unsplash.com/photo-1617791160536-598cf32026fb?w=800&q=80', // 11: 3D neural web
-  'https://images.unsplash.com/photo-1634193295627-1cdddf751ebf?w=800&q=80', // 12: Brain scan technology
-  
-  // Circuit Boards & Quantum Computing (13-19)
-  'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80', // 13: Circuit board macro
-  'https://images.unsplash.com/photo-1640826514546-7d2d05a22382?w=800&q=80', // 14: Quantum computing
-  'https://images.unsplash.com/photo-1558346490-a72e53ae2d4f?w=800&q=80', // 15: Motherboard close-up
-  'https://images.unsplash.com/photo-1516110833967-0b5716ca1387?w=800&q=80', // 16: Server infrastructure
-  'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=800&q=80', // 17: AI robot face
-  'https://images.unsplash.com/photo-1531746790731-6c087fecd65a?w=800&q=80', // 18: Blue circuit board
-  'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=800&q=80', // 19: Laptop code screen
-  
-  // Matrix Code & Data Streams (20-23)
-  'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&q=80', // 20: Matrix code
-  'https://images.unsplash.com/photo-1563770660941-20978e870e26?w=800&q=80', // 21: Digital waves
-  'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&q=80', // 22: Dark coding
-  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80', // 23: Analytics dashboard
-  
-  // Futuristic AI & Robotics (24-27)
-  'https://images.unsplash.com/photo-1633265486064-086b219458ec?w=800&q=80', // 24: AI chip
-  'https://images.unsplash.com/photo-1676277791608-ac61a7f28a82?w=800&q=80', // 25: Holographic interface
-  'https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=800&q=80', // 26: Robotic arm precision
-  'https://images.unsplash.com/photo-1507146153580-69a1fe6d8aa1?w=800&q=80', // 27: Futuristic tech abstract
-];
+// ============================================================================
+// 3-TIER IMAGE FALLBACK STRATEGY
+// ============================================================================
+// Tier 1: RSS feed images (if from trusted sources) - SKIPPED for copyright safety
+// Tier 2: Unsplash dynamic images (high-quality, royalty-free)
+// Tier 3: Local placeholders (owned assets, final fallback)
+// Last Updated: 2026-01-04
+// ============================================================================
+
+import { getArticleImage } from './image-utils';
+
+// ============================================================================
+// LOCAL-ONLY IMAGE STRATEGY (MAXIMUM CONTROL)
+// ============================================================================
 
 /**
- * Hash function for deterministic fallback selection
- * Uses title + category + source as "salt" to ensure diverse image distribution
- */
-function hashContent(title: string, category: string, source: string): number {
-  // Combine title, category, and source to create unique seed
-  const seed = `${title}|${category}|${source}`;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-}
-
-/**
- * Get deterministic fallback image with Position-Aware Zero-Repetition logic
+ * Get image path - LOCAL-ONLY VERSION
  * 
- * This "salted" selection mathematically guarantees that no two neighboring
- * articles will ever share the same fallback image, even if they have
- * identical titles, categories, or sources.
+ * MANUAL CONTROL STRATEGY:
+ * - NEVER fetch from external sources (no Unsplash, no RSS scraping)
+ * - ONLY use manually-placed local images
+ * - Every category has its own folder with curated images
+ * - Complete control over every single image displayed
  * 
- * @param title - Article title
- * @param category - Article category (Breaking AI, Gen AI, etc.)
- * @param source - Article source (TechCrunch, NVIDIA, etc.)
- * @param position - Article's position in the feed (0, 1, 2, 3...)
- * @returns URL of the fallback image from the pool
+ * Why Local-Only:
+ * 1. ABSOLUTE control - you choose every image
+ * 2. ZERO external dependencies - no API failures
+ * 3. Copyright clarity - you own/license everything
+ * 4. Performance - instant loading from local filesystem
+ * 5. Privacy - no external tracking or requests
+ * 6. Offline-ready - works without internet
+ * 
+ * @param item - RSS feed item (COMPLETELY IGNORED for images)
+ * @param title - Article title (NOT USED - we use category only)
+ * @param category - Article category (maps to local folder)
+ * @returns Local image path (e.g., "/assets/images/categories/breaking-ai/main.jpg")
  */
-function getFallbackImage(title: string, category: string, source: string, position: number): string {
-  if (!title || title.trim() === '') {
-    return FALLBACK_POOL[0];
+function extractImage(item: any, title: string, category: string): string {
+  // ============================================================================
+  // LOCAL-ONLY POLICY
+  // ============================================================================
+  // ALL external image sources are COMPLETELY IGNORED:
+  // ❌ item.enclosure - IGNORED (publisher copyright risk)
+  // ❌ item.mediaContent - IGNORED (publisher copyright risk)
+  // ❌ item.mediaThumbnail - IGNORED (publisher copyright risk)
+  // ❌ HTML content images - IGNORED (publisher copyright risk)
+  // ❌ Unsplash API - REMOVED (external dependency)
+  // ❌ ANY external URLs - BLOCKED
+  // 
+  // ✅ ONLY local files in /public/assets/images/
+  // 
+  // Philosophy:
+  // - You manually add images to category folders
+  // - System maps categories to those images
+  // - No surprises, no external failures, no copyright issues
+  // - What you see in your folders is what your users see
+  // ============================================================================
+  
+  // Get the local image path for this category
+  const localImagePath = getArticleImage(category);
+  
+  // Debug logging (can be removed in production)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[Local-Only] Using image: ${localImagePath} for category: ${category}`);
   }
   
-  // Position-Aware Selection: (hash + position) % pool_size
-  // By adding the position to the hash result, we shift the "starting point"
-  // in the pool for each article, guaranteeing visual diversity
-  const hash = hashContent(title, category, source);
-  const selectionIndex = (hash + position) % FALLBACK_POOL.length;
-  
-  return FALLBACK_POOL[selectionIndex];
-}
-
-/**
- * Extract image URL from HTML content using regex
- */
-function extractImageFromHTML(html: string): string | null {
-  if (!html) return null;
-  
-  const patterns = [
-    /<img[^>]+src=["']([^"']+)["']/i,
-    /<img[^>]+src=([^\s>]+)/i,
-    /background-image:\s*url\(["']?([^"')]+)["']?\)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match && match[1]) {
-      const url = match[1].trim();
-      if (url.startsWith('http') && (url.match(/\.(jpg|jpeg|png|gif|webp|svg)/i) || url.includes('unsplash') || url.includes('cdn'))) {
-        return url;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
- * Robust image extraction - checks all possible fields
- */
-function extractImage(item: any, title: string, category: string, source: string, position: number): string {
-  // 1. Try enclosure (Standard RSS)
-  if (item.enclosure?.url) {
-    const url = item.enclosure.url;
-    if (item.enclosure.type?.startsWith('image/') || url.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)) {
-      return url;
-    }
-  }
-
-  // 2. Try media:content (Media RSS)
-  if (item.mediaContent && Array.isArray(item.mediaContent) && item.mediaContent.length > 0) {
-    const media = item.mediaContent[0];
-    if (media.$?.url) return media.$.url;
-    if (media.url) return media.url;
-  }
-
-  // 3. Try direct media:content access
-  if (item['media:content']?.$?.url) {
-    return item['media:content'].$.url;
-  }
-
-  // 4. Try media:thumbnail
-  if (item.mediaThumbnail && Array.isArray(item.mediaThumbnail) && item.mediaThumbnail.length > 0) {
-    const thumb = item.mediaThumbnail[0];
-    if (thumb.$?.url) return thumb.$.url;
-    if (thumb.url) return thumb.url;
-  }
-
-  // 5. Try content:encoded
-  if (item.contentEncoded) {
-    const imageUrl = extractImageFromHTML(item.contentEncoded);
-    if (imageUrl) return imageUrl;
-  }
-
-  // 6. Try content
-  if (item.content) {
-    const imageUrl = extractImageFromHTML(item.content);
-    if (imageUrl) return imageUrl;
-  }
-
-  // 7. Try description
-  if (item.description) {
-    const imageUrl = extractImageFromHTML(item.description);
-    if (imageUrl) return imageUrl;
-  }
-
-  // 8. Fallback to Position-Aware Zero-Repetition selection
-  // Uses title + category + source + position to mathematically guarantee
-  // that no two articles in sequence will ever share the same fallback image
-  return getFallbackImage(title, category, source, position);
+  return localImagePath;
 }
 
 /**
@@ -392,13 +293,13 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
       const pubDateString = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
       const pubDate = parseRSSDate(pubDateString);
       
-      // Pass itemIndex to extractImage for Position-Aware fallback selection
+      // Generate Unsplash URL for every article (Unsplash-Only strategy)
       items.push({
         title: articleTitle,
         description: sanitizeDescription(item.contentSnippet || (item as any).description || ''),
         category: category,
         categoryColor: categoryColor,
-        image: extractImage(item, articleTitle, category, source, itemIndex),
+        image: extractImage(item, articleTitle, category),
         readTime: formatDate(pubDateString),
         author: extractAuthor(item, source),
         link: link, // Guaranteed to be valid at this point

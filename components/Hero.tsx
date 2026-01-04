@@ -3,29 +3,20 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { NewsItem } from './NewsCard';
+import { getDefaultPlaceholder } from '@/lib/image-utils';
 
 interface HeroProps {
   bigStory: NewsItem | null;
   trending: NewsItem[];
 }
 
-// Fallback image pool for robust error handling
-const FALLBACK_POOL = [
-  'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&q=80', // AI/Robotics
-  'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&q=80', // AI Tech
-  'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=400&q=80', // Neural Networks
-  'https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=400&q=80', // Circuits
-  'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&q=80', // Technology
-  'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400&q=80', // Futuristic
-];
-
-// Fallback data
+// Fallback data with Unsplash image
 const fallbackBigStory: NewsItem = {
   title: 'OpenAI Unveils GPT-5: The Dawn of True AGI',
   description: 'In a surprise announcement, OpenAI revealed GPT-5 with breakthrough reasoning capabilities that surpass human-level performance across multiple domains.',
   category: 'Breaking AI',
   categoryColor: 'bg-red-500',
-  image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80',
+  image: '/assets/images/categories/breaking-ai/main.jpg.svg',
   readTime: '8 min',
   author: 'Editorial Team',
   link: '#',
@@ -33,9 +24,17 @@ const fallbackBigStory: NewsItem = {
   pubDate: new Date(),
 };
 
-// TrendingItem component with robust image fallback
+// TrendingItem component with local-only strategy
 function TrendingItem({ item }: { item: NewsItem; index: number; isLast: boolean }) {
-  const [imgSrc, setImgSrc] = useState(item.image || FALLBACK_POOL[0]);
+  const defaultFallback = getDefaultPlaceholder();
+  const [imgSrc, setImgSrc] = useState(item.image || defaultFallback);
+  
+  // Simple fallback: Local image → Default placeholder
+  const handleImageError = () => {
+    if (imgSrc !== defaultFallback) {
+      setImgSrc(defaultFallback);
+    }
+  };
 
   return (
     <a
@@ -45,14 +44,17 @@ function TrendingItem({ item }: { item: NewsItem; index: number; isLast: boolean
       className="block group cursor-pointer p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-colors -mx-3"
     >
       <div className="flex flex-row gap-4">
-        {/* Thumbnail with Robust Fallback */}
+        {/* Thumbnail with Local Images */}
         <div className="relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-gray-200 dark:bg-white/10">
           <Image
             src={imgSrc}
             alt={item.title}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
-            onError={() => setImgSrc(FALLBACK_POOL[Math.floor(Math.random() * FALLBACK_POOL.length)])}
+            onError={handleImageError}
+            loading="lazy"
+            quality={85}
+            unoptimized={imgSrc.endsWith('.svg')}
           />
         </div>
         
@@ -72,6 +74,18 @@ function TrendingItem({ item }: { item: NewsItem; index: number; isLast: boolean
 
 export default function Hero({ bigStory, trending }: HeroProps) {
   const story = bigStory || fallbackBigStory;
+  
+  // Hero image with local-only strategy
+  const defaultFallback = getDefaultPlaceholder();
+  const [heroImgSrc, setHeroImgSrc] = useState(story.image || defaultFallback);
+  
+  // Simple fallback: Local image → Default placeholder
+  const handleHeroImageError = () => {
+    if (heroImgSrc !== defaultFallback) {
+      console.log('[Hero] Image failed, using default placeholder');
+      setHeroImgSrc(defaultFallback);
+    }
+  };
 
   return (
     <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch mb-20">
@@ -86,10 +100,14 @@ export default function Hero({ bigStory, trending }: HeroProps) {
           {/* Background Image - Covers Entire Card */}
           <div className="absolute inset-0 z-0">
             <Image
-              src={story.image}
+              src={heroImgSrc}
               alt={story.title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-700"
+              onError={handleHeroImageError}
+              priority
+              quality={90}
+              unoptimized={heroImgSrc.endsWith('.svg')}
             />
           </div>
 

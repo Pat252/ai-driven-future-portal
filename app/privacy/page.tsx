@@ -1,9 +1,32 @@
 import Header from '@/components/Header';
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Privacy Policy & Terms of Service - AI Driven Future',
   description: 'Privacy Policy and Terms of Service for AI Driven Future news portal.',
+  openGraph: {
+    title: 'Privacy Policy & Terms of Service - AI Driven Future',
+    description: 'Privacy Policy and Terms of Service for AI Driven Future news portal.',
+    url: 'https://www.aidrivenfuture.ca/privacy',
+    siteName: 'AI Driven Future',
+    images: [
+      {
+        url: 'https://www.aidrivenfuture.ca/assets/images/og-brand-banner.png.svg',
+        width: 1200,
+        height: 630,
+        alt: 'AI Driven Future - Privacy Policy',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Privacy Policy & Terms of Service - AI Driven Future',
+    description: 'Privacy Policy and Terms of Service for AI Driven Future news portal.',
+    images: ['https://www.aidrivenfuture.ca/assets/images/og-brand-banner.png.svg'],
+  },
 };
 
 export default function PrivacyPage() {

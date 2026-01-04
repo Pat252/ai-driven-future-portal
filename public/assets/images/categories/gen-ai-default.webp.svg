@@ -1,0 +1,15 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cyan-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06B6D4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891B2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#cyan-grad)"/>
+  <rect x="450" y="250" width="100" height="100" fill="rgba(255,255,255,0.15)" stroke="white" stroke-width="2"/>
+  <rect x="650" y="250" width="100" height="100" fill="rgba(255,255,255,0.15)" stroke="white" stroke-width="2"/>
+  <line x1="550" y1="300" x2="650" y2="300" stroke="white" stroke-width="3"/>
+  <text x="600" y="450" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="white" text-anchor="middle">GENERATIVE AI</text>
+  <text x="600" y="490" font-family="Arial, sans-serif" font-size="20" fill="rgba(255,255,255,0.9)" text-anchor="middle">Models & Tools</text>
+</svg>
+

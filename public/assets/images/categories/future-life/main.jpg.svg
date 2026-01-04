@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0891b2;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  <circle cx="600" cy="280" r="100" fill="#fff" opacity="0.1"/>
+  <path d="M580 260 Q600 230 620 260" stroke="#fff" stroke-width="3" fill="none" opacity="0.2"/>
+  <circle cx="580" cy="270" r="8" fill="#fff" opacity="0.2"/>
+  <circle cx="620" cy="270" r="8" fill="#fff" opacity="0.2"/>
+  <path d="M570 310 Q600 330 630 310" stroke="#fff" stroke-width="4" fill="none" opacity="0.25"/>
+  <text x="600" y="450" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#fff" text-anchor="middle">FUTURE LIFE</text>
+  <text x="600" y="500" font-family="Arial, sans-serif" font-size="20" fill="#fff" opacity="0.9" text-anchor="middle">AI &amp; Society</text>
+</svg>
+
