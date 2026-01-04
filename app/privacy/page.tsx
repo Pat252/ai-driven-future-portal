@@ -59,22 +59,55 @@ export default function PrivacyPage() {
           {/* Section 2: Content Aggregation */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-[#EDEDED]">
-              Content Aggregation & Copyright
+              Content Aggregation & Copyright Disclaimer
             </h2>
-            <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
-              This website is a news aggregator. Headlines and summaries are sourced from public RSS 
-              feeds for informational purposes only. All copyrights, images, and trademarks belong to 
-              their respective original publishers. We provide links to the original sources for full 
-              articles. If you are a content creator or publisher and wish to have your content removed 
-              from our aggregation, please contact us at{' '}
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+              This website is a news aggregator that provides curated summaries and headlines for informational purposes.
+            </p>
+
+            <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
+              Statutory Compliance
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+              Our use of content excerpts, headlines, and images is intended to fall under the following legal protections:
+            </p>
+            <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 leading-relaxed mb-4 space-y-2 ml-4">
+              <li>
+                <strong>Canada:</strong> Fair Dealing for the purpose of news reporting under Section 29.2 of the Copyright Act (R.S.C., 1985, c. C-42). As required by law, we provide clear attribution to the original source and author for every curated item.
+              </li>
+              <li>
+                <strong>United States:</strong> Fair Use under Section 107 of the Copyright Act of 1976. This portal serves a transformative purpose by aggregating diverse AI news into a specialized interface for public benefit and news reporting.
+              </li>
+            </ul>
+
+            <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
+              Ownership & Linking
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+              All copyrights, trademarks, and intellectual property belong to their respective original publishers. AI Driven Future does not claim ownership of any aggregated content. We provide direct outbound links to the original sources for full-text articles and do not "iframe" or host original content in a way that bypasses the publisher's original environment.
+            </p>
+
+            <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
+              DMCA Notice & Takedown Procedure
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+              We respect the intellectual property rights of others and respond to notices of alleged infringement. If you are a copyright owner or authorized agent and believe your work has been used in a way that constitutes copyright infringement, please submit a written notification to our Designated Copyright Agent at{' '}
               <a 
                 href="mailto:contact@aidrivenfuture.com" 
                 className="text-blue-500 hover:text-blue-400 underline"
               >
                 contact@aidrivenfuture.com
               </a>
-              , and we will promptly honor your request.
+              {' '}with the following information:
             </p>
+            <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 leading-relaxed space-y-2 ml-4">
+              <li>A physical or electronic signature of the authorized person.</li>
+              <li>Identification of the copyrighted work claimed to have been infringed.</li>
+              <li>Identification of the material on our site that is claimed to be infringing (including the specific URL).</li>
+              <li>Your contact information (address, phone number, and email).</li>
+              <li>A statement of "good faith belief" that the use is not authorized.</li>
+              <li>A statement made under penalty of perjury that the information provided is accurate.</li>
+            </ul>
           </section>
 
           {/* Section 3: Cookies & Analytics */}
