@@ -28,6 +28,7 @@ const FEED_URLS = [
   { url: "https://www.technologyreview.com/topic/artificial-intelligence/feed", category: "Breaking AI", categoryColor: "bg-red-500", source: "MIT Tech Review" },
   { url: "https://arstechnica.com/tag/ai/feed/", category: "Breaking AI", categoryColor: "bg-red-500", source: "Ars Technica" },
   { url: "https://www.wired.com/feed/tag/ai/latest/rss", category: "Breaking AI", categoryColor: "bg-red-500", source: "Wired" },
+  { url: "https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml", category: "Breaking AI", categoryColor: "bg-red-500", source: "ScienceDaily" },
 
   // --- GEN AI (Agents, Cloud, Models & Tools) --- ✨ BUILDER'S DASHBOARD ✨
   // 1. The Models & Research Labs (Source of Truth)
@@ -35,6 +36,8 @@ const FEED_URLS = [
   { url: "https://developers.googleblog.com/feeds/posts/default", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Google Developers" }, // Covers Gemini, Antigravity & Nano Banana
   { url: "https://huggingface.co/blog/feed.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Hugging Face" },
   { url: "https://www.deepmind.com/blog/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "DeepMind" },
+  { url: "https://developer.nvidia.com/blog/feed", category: "Gen AI", categoryColor: "bg-cyan-500", source: "NVIDIA Blog" },
+  { url: "https://machinelearning.apple.com/rss.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Apple ML" },
 
   // 2. The New IDEs & No-Code Builders (Replit, Bolt, v0)
   { url: "https://blog.replit.com/feed.xml", category: "Gen AI", categoryColor: "bg-cyan-500", source: "Replit" },
@@ -63,6 +66,7 @@ const FEED_URLS = [
   { url: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19854910", category: "AI Economy", categoryColor: "bg-green-500", source: "CNBC Tech" },
   { url: "https://www.zdnet.com/topic/artificial-intelligence/rss.xml", category: "AI Economy", categoryColor: "bg-green-500", source: "ZDNet" },
   { url: "https://fortune.com/feed/fortune-feeds/?id=3230629", category: "AI Economy", categoryColor: "bg-green-500", source: "Fortune" },
+  { url: "https://thenewstack.io/blog/feed", category: "AI Economy", categoryColor: "bg-green-500", source: "The New Stack" },
 
   // --- CREATIVE TECH (Consumer & Design) ---
   { url: "https://www.theverge.com/rss/index.xml", category: "Creative Tech", categoryColor: "bg-purple-500", source: "The Verge" },
@@ -72,6 +76,8 @@ const FEED_URLS = [
   // --- TOOLBOX (Dev & Code) ---
   { url: "https://hackernoon.com/feed", category: "Toolbox", categoryColor: "bg-orange-500", source: "HackerNoon" },
   { url: "https://dev.to/feed/tag/ai", category: "Toolbox", categoryColor: "bg-orange-500", source: "Dev.to" },
+  { url: "https://towardsdatascience.com/feed", category: "Toolbox", categoryColor: "bg-orange-500", source: "Towards Data Science" },
+  { url: "https://machinelearningmastery.com/feed", category: "Toolbox", categoryColor: "bg-orange-500", source: "ML Mastery" },
 ];
 
 // Fallback image pool for articles without images
