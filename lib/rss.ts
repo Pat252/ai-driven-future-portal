@@ -276,11 +276,11 @@ function sanitizeTitle(title: string): string {
 }
 
 /**
- * Sanitize description (remove HTML tags)
+ * Sanitize description (remove HTML tags) and truncate to 200 chars for Fair Use compliance
  */
 function sanitizeDescription(description: string): string {
   if (!description) return 'No description available.';
-  return description
+  const cleaned = description
     .replace(/<!\[CDATA\[/g, '')
     .replace(/\]\]>/g, '')
     .replace(/<[^>]*>/g, '')
@@ -290,6 +290,12 @@ function sanitizeDescription(description: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .trim();
+  
+  // Truncate to 200 characters for Fair Use compliance
+  if (cleaned.length > 200) {
+    return cleaned.substring(0, 197) + '...';
+  }
+  return cleaned;
 }
 
 /**

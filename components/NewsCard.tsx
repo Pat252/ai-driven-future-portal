@@ -64,7 +64,9 @@ export default function NewsCard({ news }: NewsCardProps) {
           {news.description}
         </p>
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-white/50">
-          <span>{news.author}</span>
+          <span>
+            {news.author && news.author !== news.source ? `By ${news.author} | ` : ''}{news.source}
+          </span>
           <span>{news.readTime}</span>
         </div>
       </div>
