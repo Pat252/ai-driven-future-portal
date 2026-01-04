@@ -38,6 +38,11 @@ export default function PrivacyPage() {
             Privacy Policy & Terms of Service
           </h1>
 
+          {/* Introductory Paragraph */}
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-6">
+            This website is operated by The Operator, the entity responsible for managing the website and services of AI Driven Future.
+          </p>
+
           {/* Last Updated */}
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-12">
             Last Updated: January 2026
@@ -62,14 +67,14 @@ export default function PrivacyPage() {
               Content Aggregation & Copyright Disclaimer
             </h2>
             <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
-              This website is a news aggregator that provides curated summaries and headlines for informational purposes.
+              This website is a news aggregator operated by The Operator that provides curated summaries and headlines for informational purposes.
             </p>
 
             <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
               Statutory Compliance
             </h3>
             <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
-              Our use of content excerpts, headlines, and images is intended to fall under the following legal protections:
+              Our use of content excerpts and headlines is intended to fall under the following legal protections:
             </p>
             <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 leading-relaxed mb-4 space-y-2 ml-4">
               <li>
@@ -81,10 +86,24 @@ export default function PrivacyPage() {
             </ul>
 
             <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
+              Image Use
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+              The Operator does not host or store original publisher images. Any visual thumbnails displayed are served via standard linking protocols (e.g., Open Graph) or are used with permission. Our primary use of content is limited to headlines and short text excerpts.
+            </p>
+
+            <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
               Ownership & Linking
             </h3>
             <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
-              All copyrights, trademarks, and intellectual property belong to their respective original publishers. AI Driven Future does not claim ownership of any aggregated content. We provide direct outbound links to the original sources for full-text articles and do not "iframe" or host original content in a way that bypasses the publisher's original environment.
+              All copyrights, trademarks, and intellectual property belong to their respective original publishers. The Operator does not claim ownership of any aggregated content. We provide direct outbound links to the original sources for full-text articles and do not "iframe" or host original content in a way that bypasses the publisher's original environment.
+            </p>
+
+            <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
+              Market Integrity
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
+              All curated summaries are intentionally brief and designed to provide a high-level overview only. They are not intended to replace the original article. We encourage our readers to click the provided outbound links to access the full-text reporting on the publisher's own platform.
             </p>
 
             <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-[#EDEDED] mt-6">
@@ -93,10 +112,10 @@ export default function PrivacyPage() {
             <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
               We respect the intellectual property rights of others and respond to notices of alleged infringement. If you are a copyright owner or authorized agent and believe your work has been used in a way that constitutes copyright infringement, please submit a written notification to our Designated Copyright Agent at{' '}
               <a 
-                href="mailto:contact@aidrivenfuture.com" 
+                href="mailto:contact@aidrivenfuture.ca" 
                 className="text-blue-500 hover:text-blue-400 underline"
               >
-                contact@aidrivenfuture.com
+                contact@aidrivenfuture.ca
               </a>
               {' '}with the following information:
             </p>
@@ -148,7 +167,7 @@ export default function PrivacyPage() {
           </section>
 
           {/* Contact Section */}
-          <section className="p-6 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10">
+          <section className="p-6 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 mb-12">
             <h2 className="text-xl font-bold mb-3 text-gray-900 dark:text-[#EDEDED]">
               Questions or Concerns?
             </h2>
@@ -156,11 +175,21 @@ export default function PrivacyPage() {
               If you have any questions about this Privacy Policy or our data practices, please reach 
               out to us at{' '}
               <a 
-                href="mailto:contact@aidrivenfuture.com" 
+                href="mailto:contact@aidrivenfuture.ca" 
                 className="text-blue-500 hover:text-blue-400 underline"
               >
-                contact@aidrivenfuture.com
+                contact@aidrivenfuture.ca
               </a>
+            </p>
+          </section>
+
+          {/* Governing Law & Jurisdiction */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-[#EDEDED]">
+              Governing Law & Jurisdiction
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+              This website is managed by The Operator from Quebec, Canada. These Terms and your use of the site are governed by the laws of the Province of Quebec and the federal laws of Canada. You hereby irrevocably submit to the exclusive jurisdiction of the courts located in the District of Montreal for any disputes arising from this site.
             </p>
           </section>
         </div>
