@@ -14,13 +14,47 @@
  * - AI-Powered: GPT-4o-mini understands brand/logo relationships
  * - Zero maintenance: No code updates needed when adding images
  * - Smart matching: Semantic understanding + keyword fallback
+ * - Brand Safety: Defense-in-depth filtering for all tiers
+ * - Deterministic: ImageDecision contract for testability
  * 
- * Updated: 2026-01-04 (Automatic Discovery + Server-Side Safety)
+ * Updated: 2026-01-05 (Cleanup & Defense-in-Depth)
  */
 
 import { getGenericImageForArticle } from './generic-images';
 import { findBrandMatches, selectBrandImage } from './brand-matcher';
 import { filterSubjectImages, filterGenericImages } from './image-classifier';
+
+// ============================================================================
+// IMAGE DECISION CONTRACT (Centralized)
+// ============================================================================
+
+export type ImageTier = "GPT" | "BRAND" | "KEYWORD" | "GENERIC" | "HARD_FALLBACK";
+
+export type ImageDecision = {
+  image: string;             // final public path (e.g., /assets/images/all/xxx.jpg)
+  filename: string;          // raw filename (xxx.jpg)
+  tier: ImageTier;
+  reason: string;
+  policyVersion: number;     // bump when rules change
+};
+
+/**
+ * Current image selection policy version
+ * Bump this number when:
+ * - Brand safety rules change
+ * - Filtering logic changes
+ * - Any algorithmic changes to selection
+ * This invalidates old cache entries automatically
+ */
+export const IMAGE_POLICY_VERSION = 1;
+
+// ============================================================================
+// PER-REQUEST CONTEXT (Avoid Duplicates on Same Page)
+// ============================================================================
+
+export type ImageSelectionContext = {
+  usedFilenames: Set<string>;
+};
 
 // ============================================================================
 // CONDITIONAL IMPORTS (Server-Side Only)
@@ -128,6 +162,152 @@ export function clearImageCache(): void {
   }
   imageLibraryCache = null;
   console.log('🔄 Image library cache cleared');
+}
+
+// ============================================================================
+// HELPER FUNCTIONS (Pure, Deterministic)
+// ============================================================================
+
+/**
+ * Normalize filename from path or name
+ * @param pathOrName - Either a full path or just a filename
+ * @returns Just the filename (e.g., "image.jpg")
+ */
+export function normalizeFilename(pathOrName: string): string {
+  return pathOrName.split('/').pop() || pathOrName;
+}
+
+/**
+ * Check if filename indicates a brand image
+ * @param filename - Image filename
+ * @returns true if filename starts with "brand-"
+ */
+export function isBrandByFilename(filename: string): boolean {
+  return normalizeFilename(filename).toLowerCase().startsWith('brand-');
+}
+
+/**
+ * Check if filename is safe for generic articles
+ * @param filename - Image filename
+ * @returns true if NOT a brand image
+ */
+export function isGenericSafeFilename(filename: string): boolean {
+  return !isBrandByFilename(filename);
+}
+
+/**
+ * Add public path prefix to filename
+ * @param filename - Image filename
+ * @returns Full public path
+ */
+export function withPublicPath(filename: string): string {
+  return `/assets/images/all/${normalizeFilename(filename)}`;
+}
+
+// ============================================================================
+// BRAND CLASSIFICATION (Simple, Deterministic)
+// ============================================================================
+
+/**
+ * Known brand keywords for simple classification
+ * Used to detect brand articles vs generic articles
+ */
+const BRAND_KEYWORDS = [
+  'openai', 'gpt', 'chatgpt',
+  'google', 'gemini', 'deepmind',
+  'meta', 'facebook', 'instagram', 'whatsapp',
+  'apple', 'siri', 'iphone',
+  'microsoft', 'copilot', 'azure', 'bing',
+  'nvidia', 'cuda',
+  'amazon', 'aws', 'alexa',
+  'anthropic', 'claude',
+  'tesla', 'spacex',
+  'samsung', 'galaxy',
+  'intel', 'amd',
+  'ibm', 'watson',
+  'oracle', 'salesforce',
+  'adobe', 'photoshop',
+  'netflix', 'spotify',
+  'uber', 'lyft',
+  'airbnb', 'booking',
+];
+
+/**
+ * Determine if an article is likely about a specific brand
+ * @param title - Article title
+ * @param description - Article description
+ * @returns true if article mentions brand keywords
+ */
+export function isLikelyBrandArticle(title: string, description: string = ''): boolean {
+  const text = `${title} ${description}`.toLowerCase();
+  return BRAND_KEYWORDS.some(keyword => text.includes(keyword));
+}
+
+// ============================================================================
+// FINALIZE DECISION (Brand Safety + Deduplication)
+// ============================================================================
+
+/**
+ * Finalize image decision with brand safety (SIMPLIFIED FOR STABILITY)
+ * 
+ * This function:
+ * 1. Ensures generic articles don't get brand images (CRITICAL)
+ * 2. Marks filename as used in context (for stats only)
+ * 3. Returns final decision
+ * 
+ * ACCEPTS DUPLICATES: Better to show same image twice than crash.
+ * 
+ * @param decision - Initial decision from tier
+ * @param library - Full image library
+ * @param ctx - Per-request context
+ * @param isGeneric - Whether article is generic (not brand-specific)
+ * @param title - Article title (for deterministic selection)
+ * @returns Finalized decision
+ */
+function finalizeDecision(
+  decision: ImageDecision,
+  library: string[],
+  ctx: ImageSelectionContext,
+  isGeneric: boolean,
+  title: string
+): ImageDecision {
+  let finalFilename = decision.filename;
+  let finalReason = decision.reason;
+  
+  // CRITICAL RULE: Generic articles MUST NOT use brand images
+  if (isGeneric && isBrandByFilename(finalFilename)) {
+    // Find alternative generic-safe images (accept duplicates)
+    const anySafeImages = library.filter(img => isGenericSafeFilename(img));
+    
+    if (anySafeImages.length > 0) {
+      // Deterministic selection using title hash
+      const titleHash = simpleHash(title);
+      const index = Math.floor(titleHash * anySafeImages.length);
+      finalFilename = anySafeImages[index];
+      finalReason = `${decision.reason} → Replaced brand image with generic-safe`;
+    } else {
+      // ABSOLUTE FALLBACK: Use placeholder if no generic-safe images
+      console.error('[CRITICAL] No generic-safe images available, using placeholder');
+      return {
+        image: getDefaultPlaceholder(),
+        filename: 'placeholder.jpg.svg',
+        tier: 'HARD_FALLBACK',
+        reason: 'No generic-safe images available',
+        policyVersion: IMAGE_POLICY_VERSION,
+      };
+    }
+  }
+  
+  // Mark as used (for stats tracking only, doesn't affect selection)
+  ctx.usedFilenames.add(finalFilename);
+  
+  // ALWAYS return a valid decision (never null/undefined)
+  return {
+    ...decision,
+    filename: finalFilename,
+    image: withPublicPath(finalFilename),
+    reason: finalReason,
+  };
 }
 
 // ============================================================================
@@ -246,7 +426,7 @@ function scoreImageMatch(
 }
 
 // ============================================================================
-// MAIN IMAGE SELECTOR
+// MAIN IMAGE SELECTOR (Returns ImageDecision)
 // ============================================================================
 
 /**
@@ -256,116 +436,131 @@ function scoreImageMatch(
  * ⚠️  DO NOT import in client components (NewsCard, Hero, etc.)
  * 
  * TIER 1: GPT-4o-mini AI Curation (Semantic Understanding)
- * - Uses OpenAI to understand conceptual relationships
- * - "Agentic Metadata" → infrastructure images
- * - Cost: ~$0.01 per 1,000 articles
- * 
+ * TIER 1.5: Brand Matching (Explicit brand name in title)
  * TIER 2: Weighted Keyword Matching (Fallback)
- * - +2.0 points if filename contains category name
- * - +1.5 points for each title keyword match
- * - -5.0 points (PENALTY) if image already used
+ * TIER 3: Generic Image Fallback (Brand-Safe)
+ * HARD_FALLBACK: Hardcoded Registry
  * 
- * TIER 3: Hash-Based Random (Final Fallback)
- * - Consistent selection based on title hash
- * - Ensures every article gets an image
- * 
- * BENEFITS:
- * - Intelligent Matching: AI understands context beyond keywords
- * - Visual Diversity: Nearby articles use different images
- * - Image Persistence: Same article = same image every time
- * - Reliability: Multiple fallback layers ensure 100% coverage
- * 
- * @param title - Article title (e.g., "Bitcoin Reaches New All-Time High")
- * @param category - Article category (e.g., "AI Economy")
- * @param usedImagesSet - Set of already-used image filenames (for visual diversity)
- * @param useAI - Whether to attempt AI curation (default: true, set false to skip)
- * @returns Local image path (e.g., "/assets/images/all/bitcoins-money-dollars.jpg")
+ * @param title - Article title
+ * @param description - Article description (for brand detection)
+ * @param imageLibrary - Array of available image filenames
+ * @param opts - Optional context for deduplication
+ * @returns ImageDecision with path, filename, tier, reason
  */
 export async function getArticleImage(
   title: string, 
-  category: string, 
-  usedImagesSet: Set<string> = new Set(),
-  useAI: boolean = true
-): Promise<string> {
+  description: string,
+  imageLibrary: string[],
+  opts?: { context?: ImageSelectionContext }
+): Promise<ImageDecision> {
+  // Setup context
+  const ctx = opts?.context ?? { usedFilenames: new Set() };
+  
   // CLIENT-SIDE SAFETY: Return default placeholder if called in browser
   if (typeof window !== 'undefined') {
     console.warn('⚠️  getArticleImage() called on client-side, returning default placeholder');
-    return getDefaultPlaceholder();
+    ctx.usedFilenames.add('placeholder.jpg.svg');
+    const decision: ImageDecision = {
+      image: getDefaultPlaceholder(),
+      filename: 'placeholder.jpg.svg',
+      tier: 'HARD_FALLBACK',
+      reason: 'Client-side call safety fallback',
+      policyVersion: IMAGE_POLICY_VERSION,
+    };
+    return decision;
   }
   
-  // Get automatically discovered image library
-  const imageLibrary = getImageLibrary();
-  
-  // If no images found, return fallback immediately
+  // If no images found, return fallback immediately (ABSOLUTE GUARANTEE)
   if (imageLibrary.length === 0) {
     console.error('❌ No images found in library!');
-    return getDefaultPlaceholder();
+    ctx.usedFilenames.add('placeholder.jpg.svg');
+    const decision: ImageDecision = {
+      image: getDefaultPlaceholder(),
+      filename: 'placeholder.jpg.svg',
+      tier: 'HARD_FALLBACK',
+      reason: 'Empty image library',
+      policyVersion: IMAGE_POLICY_VERSION,
+    };
+    return decision;
   }
+  
+  // Classify article
+  const isGeneric = !isLikelyBrandArticle(title, description);
   
   // ============================================================================
   // TIER 1: AI-POWERED CURATION (GPT-4o-mini)
   // ============================================================================
-  // Check if AI curation is enabled via environment variable
-  // Defaults to true if not set (backward compatible)
   const aiCurationEnabled = process.env.ENABLE_AI_CURATION !== 'false';
   
-  if (useAI && aiCurationEnabled && typeof window === 'undefined') { // Server-side only
+  if (aiCurationEnabled && typeof window === 'undefined') {
     try {
       const { smartCurateImage } = await import('./openai');
       
-      // Filter out already-used images from library for AI selection
-      const availableImages = imageLibrary.filter(img => !usedImagesSet.has(img));
+      // BRAND SAFETY: Filter library for GPT if article is generic
+      let libraryForGPT = imageLibrary;
+      if (isGeneric) {
+        libraryForGPT = imageLibrary.filter(img => isGenericSafeFilename(img));
+        if (libraryForGPT.length === 0) {
+          libraryForGPT = imageLibrary; // Fallback to full library if no generic images
+        }
+      }
       
-      // If all images used, reset to full library
-      const imagesToConsider = availableImages.length > 0 ? availableImages : imageLibrary;
+      // Filter out already-used images
+      const availableImages = libraryForGPT.filter(img => !ctx.usedFilenames.has(img));
+      const imagesToConsider = availableImages.length > 0 ? availableImages : libraryForGPT;
       
-      const aiSelectedFilename = await smartCurateImage(title, category, imagesToConsider);
+      const aiSelectedFilename = await smartCurateImage(title, '', imagesToConsider);
       
       if (aiSelectedFilename && aiSelectedFilename !== 'RANDOM') {
-        // AI successfully selected an image!
+        const decision: ImageDecision = {
+          image: withPublicPath(aiSelectedFilename),
+          filename: normalizeFilename(aiSelectedFilename),
+          tier: 'GPT',
+          reason: `GPT-4o-mini semantic selection${isGeneric ? ' (generic-safe library)' : ''}`,
+          policyVersion: IMAGE_POLICY_VERSION,
+        };
+        
         if (process.env.NODE_ENV !== 'production') {
-          console.log(`[AI Match] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${aiSelectedFilename} (Confidence: High)`);
+          console.log(`[AI Match] "${title.substring(0, 50)}..." -> ${aiSelectedFilename}`);
         }
         
-        // Add to used set
-        usedImagesSet.add(aiSelectedFilename);
-        
-        return `/assets/images/all/${aiSelectedFilename}`;
+        return finalizeDecision(decision, imageLibrary, ctx, isGeneric, title);
       }
     } catch (error) {
-      // AI failed, fall through to keyword matching
       if (process.env.NODE_ENV !== 'production') {
-        console.warn('⚠️  AI curation failed, falling back to keyword matching:', error);
+        console.warn('⚠️  AI curation failed, falling back:', error);
       }
     }
-  } else if (!aiCurationEnabled && process.env.NODE_ENV !== 'production') {
-    // Log when AI curation is explicitly disabled
-    console.log(`[AI Curation DISABLED] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> Using keyword matching fallback`);
   }
   
   // ============================================================================
   // TIER 1.5: BRAND-AWARE EXPLICIT MATCH (Zero-Cost, Deterministic)
   // ============================================================================
-  // Brand images are used ONLY when brand name appears explicitly in title
-  // No fuzzy matching, no inference, no OpenAI calls
-  // Runs after GPT (if enabled) but before keyword matching
-  const brandMatches = findBrandMatches(title, imageLibrary);
-  
-  if (brandMatches.length > 0) {
-    // Filter out already-used brand images for visual diversity
-    const availableBrandMatches = brandMatches.filter(img => !usedImagesSet.has(img));
-    const matchesToConsider = availableBrandMatches.length > 0 ? availableBrandMatches : brandMatches;
+  if (!isGeneric) {
+    // Only try brand matching for brand articles
+    const brandMatches = findBrandMatches(title, imageLibrary);
     
-    const selectedBrandImage = selectBrandImage(title, matchesToConsider, simpleHash);
-    
-    if (selectedBrandImage) {
-      // Extract brand name for logging
-      const brandName = selectedBrandImage.split(/[-_]/)[0];
+    if (brandMatches.length > 0) {
+      const availableBrandMatches = brandMatches.filter(img => !ctx.usedFilenames.has(img));
+      const matchesToConsider = availableBrandMatches.length > 0 ? availableBrandMatches : brandMatches;
       
-      console.log(`[Brand Match] "${brandName}" → ${selectedBrandImage} (Title: "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}")`);
+      const selectedBrandImage = selectBrandImage(title, matchesToConsider, simpleHash);
       
-      usedImagesSet.add(selectedBrandImage);
-      return `/assets/images/all/${selectedBrandImage}`;
+      if (selectedBrandImage) {
+        const brandName = selectedBrandImage.split(/[-_]/)[1] || 'brand';
+        
+        const decision: ImageDecision = {
+          image: withPublicPath(selectedBrandImage),
+          filename: normalizeFilename(selectedBrandImage),
+          tier: 'BRAND',
+          reason: `Explicit brand match for "${brandName}"`,
+          policyVersion: IMAGE_POLICY_VERSION,
+        };
+        
+        console.log(`[Brand Match] "${brandName}" → ${selectedBrandImage}`);
+        
+        return finalizeDecision(decision, imageLibrary, ctx, isGeneric, title);
+      }
     }
   }
   
@@ -373,113 +568,92 @@ export async function getArticleImage(
   // TIER 2: WEIGHTED KEYWORD MATCHING (Fallback)
   // ============================================================================
   
-  // Filter to only subject images (exclude generic and category-prefixed images)
-  const subjectImages = filterSubjectImages(imageLibrary);
+  // BRAND SAFETY: Filter subject images for generic articles
+  let subjectImages = filterSubjectImages(imageLibrary);
+  if (isGeneric) {
+    subjectImages = subjectImages.filter(img => isGenericSafeFilename(img));
+  }
   
-  // Extract keywords from title (removes stop words automatically)
   const titleKeywords = extractKeywords(title);
   
-  // If no keywords or no subject images, skip to Tier 3
   if (titleKeywords.length > 0 && subjectImages.length > 0) {
-    // Score only subject images with visual diversity penalty
     const scoredImages = subjectImages.map(imageFilename => ({
       filename: imageFilename,
-      score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
+      score: scoreImageMatch(titleKeywords, '', imageFilename, ctx.usedFilenames),
     }));
   
-    // Sort by score (highest first)
     scoredImages.sort((a, b) => b.score - a.score);
-    
-    // Get best match
     const bestMatch = scoredImages[0];
     
     // PERSISTENCE: Use hash of title to pick from top matches consistently
-    // This ensures the same article always gets the same image
     const titleHash = simpleHash(title);
     const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
     const persistentIndex = Math.floor(titleHash * topMatches.length);
     const selectedImage = topMatches[persistentIndex] || bestMatch;
     
-    // Keyword Match Console Logging (development only)
-    if (process.env.NODE_ENV !== 'production') {
-      const truncatedTitle = title.length > 50 ? title.substring(0, 50) + '...' : title;
-      const confidence = selectedImage.score > 3 ? 'High' : selectedImage.score > 0 ? 'Medium' : 'Low';
-      console.log(`[Keyword Match] "${truncatedTitle}" -> ${selectedImage.filename} (Score: ${selectedImage.score.toFixed(1)}, Confidence: ${confidence})`);
-    }
-    
-    // Add to used set
-    usedImagesSet.add(selectedImage.filename);
-    
-    // If best match has positive score, use it
     if (selectedImage.score > 0) {
-      return `/assets/images/all/${selectedImage.filename}`;
+      const decision: ImageDecision = {
+        image: withPublicPath(selectedImage.filename),
+        filename: normalizeFilename(selectedImage.filename),
+        tier: 'KEYWORD',
+        reason: `Keyword match (score: ${selectedImage.score.toFixed(1)})${isGeneric ? ' [generic-safe]' : ''}`,
+        policyVersion: IMAGE_POLICY_VERSION,
+      };
+      
+      if (process.env.NODE_ENV !== 'production') {
+        const confidence = selectedImage.score > 3 ? 'High' : selectedImage.score > 0 ? 'Medium' : 'Low';
+        console.log(`[Keyword Match] "${title.substring(0, 50)}..." -> ${selectedImage.filename} (Score: ${selectedImage.score.toFixed(1)}, Confidence: ${confidence})`);
+      }
+      
+      return finalizeDecision(decision, imageLibrary, ctx, isGeneric, title);
     }
   }
   
   // ============================================================================
-  // TIER 3: GENERIC IMAGE FALLBACK (Mandatory Owned Image - 100% COVERAGE GUARANTEE)
-  // ============================================================================
-  // 
-  // DEFENSE-IN-DEPTH HOTFIX (Option C):
-  // - Filters out brand-* filenames BEFORE selection
-  // - Ensures brand images never leak via fallback
-  // - Works without CSV metadata (filename-based only)
+  // TIER 3: GENERIC IMAGE FALLBACK (Brand-Safe)
   // ============================================================================
   
-  // No matches found - use ONLY images with *-generic-* prefix
   const genericImages = filterGenericImages(imageLibrary);
-  
-  if (genericImages.length === 0) {
-    // Safety fallback: if no generic images exist, use hardcoded registry
-    const genericImage = getGenericImageForArticle(title, category, simpleHash);
-    console.warn('[Image Fallback Triggered]', title);
-    
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Generic Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${genericImage} (Category: ${category}, Using registry)`);
-    }
-    
-    usedImagesSet.add(genericImage);
-    return `/assets/images/all/${genericImage}`;
-  }
-  
-  // ============================================================================
-  // DEFENSE-IN-DEPTH: Filter out brand-* filenames (CRITICAL SAFETY)
-  // ============================================================================
-  // Even if an image passes generic filter, block if filename starts with "brand-"
-  // This prevents brand leakage even if image naming is inconsistent
-  const brandSafeImages = genericImages.filter(
-    img => !img.toLowerCase().startsWith("brand-")
-  );
+  const brandSafeImages = genericImages.filter(img => isGenericSafeFilename(img));
   
   if (brandSafeImages.length === 0) {
-    console.error(
-      `[Generic Fallback] No brand-safe images available — all generic images have brand- prefix (check image inventory)`
-    );
-    // Fall back to hardcoded registry as last resort
-    const genericImage = getGenericImageForArticle(title, category, simpleHash);
-    console.log(`[Generic Fallback] Using hardcoded registry fallback: ${genericImage}`);
-    usedImagesSet.add(genericImage);
-    return `/assets/images/all/${genericImage}`;
+    // Use hardcoded registry as ABSOLUTE FALLBACK
+    const genericImage = getGenericImageForArticle(title, '', simpleHash);
+    ctx.usedFilenames.add(normalizeFilename(genericImage));
+    const decision: ImageDecision = {
+      image: withPublicPath(genericImage),
+      filename: normalizeFilename(genericImage),
+      tier: 'HARD_FALLBACK',
+      reason: 'Hardcoded registry fallback (no brand-safe generic images)',
+      policyVersion: IMAGE_POLICY_VERSION,
+    };
+    
+    console.warn(`[Generic Fallback] Using hardcoded registry: ${genericImage}`);
+    
+    // Don't call finalizeDecision for hard fallback (already safe)
+    return decision;
   }
   
-  // Use hash-based selection from brand-safe generic images only
+  // Deterministic selection from brand-safe pool
   const titleHash = simpleHash(title);
   const genericIndex = Math.floor(titleHash * brandSafeImages.length);
   const genericImage = brandSafeImages[genericIndex];
   
-  // Log fallback trigger with brand-safe confirmation
-  console.warn('[Image Fallback Triggered]', title);
+  const decision: ImageDecision = {
+    image: withPublicPath(genericImage),
+    filename: normalizeFilename(genericImage),
+    tier: 'GENERIC',
+    reason: `Generic fallback (brand-safe, ${brandSafeImages.length} candidates)`,
+    policyVersion: IMAGE_POLICY_VERSION,
+  };
   
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[Generic Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${genericImage} (Category: ${category}, Brand-Safe)`);
+    console.log(`[Generic Fallback] "${title.substring(0, 50)}..." -> ${genericImage}`);
   }
   
-  // Production log for auditability
   console.log(`[Generic Fallback] Selected brand-safe image: ${genericImage} (from ${brandSafeImages.length} candidates)`);
   
-  usedImagesSet.add(genericImage);
-  
-  return `/assets/images/all/${genericImage}`;
+  return finalizeDecision(decision, imageLibrary, ctx, isGeneric, title);
 }
 
 /**
@@ -488,55 +662,89 @@ export async function getArticleImage(
  * ⚠️  SERVER-SIDE ONLY - Uses file system discovery
  * ⚠️  For client-side, components should receive pre-selected image paths
  * 
- * Uses only keyword matching and hash-based fallback.
- * AI curation is skipped because it requires async execution.
- * 
  * @param title - Article title
- * @param category - Article category
- * @param usedImagesSet - Set of already-used image filenames
- * @returns Local image path
+ * @param description - Article description
+ * @param imageLibrary - Array of available image filenames
+ * @param opts - Optional context for deduplication
+ * @returns ImageDecision
  */
 export function getArticleImageSync(
   title: string, 
-  category: string, 
-  usedImagesSet: Set<string> = new Set()
-): string {
+  description: string,
+  imageLibrary: string[],
+  opts?: { context?: ImageSelectionContext }
+): ImageDecision {
+  const ctx = opts?.context ?? { usedFilenames: new Set() };
+  
   // CLIENT-SIDE SAFETY: Return default placeholder if called in browser
   if (typeof window !== 'undefined') {
     console.warn('⚠️  getArticleImageSync() called on client-side, returning default placeholder');
-    return getDefaultPlaceholder();
+    ctx.usedFilenames.add('placeholder.jpg.svg');
+    return {
+      image: getDefaultPlaceholder(),
+      filename: 'placeholder.jpg.svg',
+      tier: 'HARD_FALLBACK',
+      reason: 'Client-side call safety fallback',
+      policyVersion: IMAGE_POLICY_VERSION,
+    };
   }
   
-  // Get automatically discovered image library
-  const imageLibrary = getImageLibrary();
-  
-  // If no images found, return fallback
+  // If no images found, return fallback (ABSOLUTE GUARANTEE)
   if (imageLibrary.length === 0) {
-    return getDefaultPlaceholder();
+    ctx.usedFilenames.add('placeholder.jpg.svg');
+    return {
+      image: getDefaultPlaceholder(),
+      filename: 'placeholder.jpg.svg',
+      tier: 'HARD_FALLBACK',
+      reason: 'Empty image library',
+      policyVersion: IMAGE_POLICY_VERSION,
+    };
   }
   
-  // Extract keywords from title (removes stop words automatically)
+  // Classify article
+  const isGeneric = !isLikelyBrandArticle(title, description);
+  
+  // Extract keywords from title
   const titleKeywords = extractKeywords(title);
   
-  // If no keywords, use hash-based fallback
+  // If no keywords, use generic fallback
   if (titleKeywords.length === 0) {
-    const titleHash = simpleHash(title);
-    const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-    const fallbackImage = imageLibrary[fallbackIndex];
-    usedImagesSet.add(fallbackImage);
-    return `/assets/images/all/${fallbackImage}`;
+    const genericImages = filterGenericImages(imageLibrary);
+    const brandSafeImages = genericImages.filter(img => isGenericSafeFilename(img));
+    
+    if (brandSafeImages.length > 0) {
+      const titleHash = simpleHash(title);
+      const index = Math.floor(titleHash * brandSafeImages.length);
+      const fallbackImage = brandSafeImages[index];
+      
+      const decision: ImageDecision = {
+        image: withPublicPath(fallbackImage),
+        filename: normalizeFilename(fallbackImage),
+        tier: 'GENERIC',
+        reason: 'No keywords - generic fallback',
+        policyVersion: IMAGE_POLICY_VERSION,
+      };
+      
+      return finalizeDecision(decision, imageLibrary, ctx, isGeneric, title);
+    }
+  }
+  
+  // BRAND SAFETY: Filter library for generic articles
+  let libraryToUse = imageLibrary;
+  if (isGeneric) {
+    libraryToUse = imageLibrary.filter(img => isGenericSafeFilename(img));
+    if (libraryToUse.length === 0) {
+      libraryToUse = imageLibrary; // Fallback
+    }
   }
   
   // Score all images with visual diversity penalty
-  const scoredImages = imageLibrary.map(imageFilename => ({
+  const scoredImages = libraryToUse.map(imageFilename => ({
     filename: imageFilename,
-    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
+    score: scoreImageMatch(titleKeywords, '', imageFilename, ctx.usedFilenames),
   }));
   
-  // Sort by score (highest first)
   scoredImages.sort((a, b) => b.score - a.score);
-  
-  // Get best match
   const bestMatch = scoredImages[0];
   
   // PERSISTENCE: Use hash of title to pick from top matches consistently
@@ -545,32 +753,60 @@ export function getArticleImageSync(
   const persistentIndex = Math.floor(titleHash * topMatches.length);
   const selectedImage = topMatches[persistentIndex] || bestMatch;
   
-  // Add to used set
-  usedImagesSet.add(selectedImage.filename);
-  
   // If best match has positive score, use it
   if (selectedImage.score > 0) {
-    return `/assets/images/all/${selectedImage.filename}`;
+    const decision: ImageDecision = {
+      image: withPublicPath(selectedImage.filename),
+      filename: normalizeFilename(selectedImage.filename),
+      tier: 'KEYWORD',
+      reason: `Keyword match (score: ${selectedImage.score.toFixed(1)})${isGeneric ? ' [generic-safe]' : ''}`,
+      policyVersion: IMAGE_POLICY_VERSION,
+    };
+    
+    return finalizeDecision(decision, imageLibrary, ctx, isGeneric, title);
   }
   
-  // No matches found - use hash to pick consistent fallback
-  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-  const fallbackImage = imageLibrary[fallbackIndex];
+  // Generic fallback with brand safety
+  const genericImages = filterGenericImages(imageLibrary);
+  const brandSafeImages = genericImages.filter(img => isGenericSafeFilename(img));
   
-  usedImagesSet.add(fallbackImage);
+  if (brandSafeImages.length > 0) {
+    const fallbackIndex = Math.floor(titleHash * brandSafeImages.length);
+    const fallbackImage = brandSafeImages[fallbackIndex];
+    
+    const decision: ImageDecision = {
+      image: withPublicPath(fallbackImage),
+      filename: normalizeFilename(fallbackImage),
+      tier: 'GENERIC',
+      reason: `Generic fallback (brand-safe, ${brandSafeImages.length} candidates)`,
+      policyVersion: IMAGE_POLICY_VERSION,
+    };
+    
+    return finalizeDecision(decision, imageLibrary, ctx, isGeneric, title);
+  }
   
-  return `/assets/images/all/${fallbackImage}`;
+  // ABSOLUTE HARD FALLBACK (ALWAYS WORKS)
+  const hardFallback = getGenericImageForArticle(title, '', simpleHash);
+  ctx.usedFilenames.add(normalizeFilename(hardFallback));
+  const decision: ImageDecision = {
+    image: withPublicPath(hardFallback),
+    filename: normalizeFilename(hardFallback),
+    tier: 'HARD_FALLBACK',
+    reason: 'Hardcoded registry fallback',
+    policyVersion: IMAGE_POLICY_VERSION,
+  };
+  
+  // Don't call finalizeDecision for hard fallback (already safe)
+  return decision;
 }
 
+// ============================================================================
+// LEGACY COMPATIBILITY WRAPPERS
+// ============================================================================
+
 /**
- * Get article image with score (for debugging and logging purposes)
- * ASYNC version that supports AI curation
- * 
- * @param title - Article title
- * @param category - Article category
- * @param usedImagesSet - Set of already-used image filenames
- * @param useAI - Whether to attempt AI curation
- * @returns Object with path, score, filename, and method used
+ * Legacy wrapper for backward compatibility
+ * @deprecated Use getArticleImage() directly which returns ImageDecision
  */
 export async function getArticleImageWithScore(
   title: string, 
@@ -578,108 +814,20 @@ export async function getArticleImageWithScore(
   usedImagesSet: Set<string> = new Set(),
   useAI: boolean = true
 ): Promise<{ path: string; score: number; filename: string; method: 'ai' | 'keyword' | 'fallback' }> {
-  // Get automatically discovered image library
   const imageLibrary = getImageLibrary();
-  
-  // If no images, return default placeholder
-  if (imageLibrary.length === 0) {
-    return { 
-      path: getDefaultPlaceholder(), 
-      score: 0, 
-      filename: 'default-placeholder',
-      method: 'fallback',
-    };
-  }
-  
-  // Try AI first if enabled and server-side
-  const aiCurationEnabled = process.env.ENABLE_AI_CURATION !== 'false';
-  
-  if (useAI && aiCurationEnabled && typeof window === 'undefined') {
-    try {
-      const { smartCurateImage } = await import('./openai');
-      
-      const availableImages = imageLibrary.filter(img => !usedImagesSet.has(img));
-      const imagesToConsider = availableImages.length > 0 ? availableImages : imageLibrary;
-      
-      const aiSelectedFilename = await smartCurateImage(title, category, imagesToConsider);
-      
-      if (aiSelectedFilename && aiSelectedFilename !== 'RANDOM') {
-        usedImagesSet.add(aiSelectedFilename);
-        return {
-          path: `/assets/images/all/${aiSelectedFilename}`,
-          score: 10.0, // AI selections get perfect score
-          filename: aiSelectedFilename,
-          method: 'ai',
-        };
-      }
-    } catch (error) {
-      // Fall through to keyword matching
-    }
-  }
-  
-  // Keyword matching fallback
-  const titleKeywords = extractKeywords(title);
-  
-  if (titleKeywords.length === 0) {
-    // Use hash-based fallback for consistency
-    const titleHash = simpleHash(title);
-    const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-    const fallbackImage = imageLibrary[fallbackIndex];
-    usedImagesSet.add(fallbackImage);
-    return { 
-      path: `/assets/images/all/${fallbackImage}`, 
-      score: 0, 
-      filename: fallbackImage,
-      method: 'fallback',
-    };
-  }
-  
-  const scoredImages = imageLibrary.map(imageFilename => ({
-    filename: imageFilename,
-    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
-  }));
-  
-  scoredImages.sort((a, b) => b.score - a.score);
-  const bestMatch = scoredImages[0];
-  
-  // Use hash for persistence
-  const titleHash = simpleHash(title);
-  const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
-  const persistentIndex = Math.floor(titleHash * topMatches.length);
-  const selectedImage = topMatches[persistentIndex] || bestMatch;
-  
-  usedImagesSet.add(selectedImage.filename);
-  
-  if (selectedImage.score > 0) {
-    return {
-      path: `/assets/images/all/${selectedImage.filename}`,
-      score: selectedImage.score,
-      filename: selectedImage.filename,
-      method: 'keyword',
-    };
-  }
-  
-  // Consistent fallback using hash
-  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-  const fallbackImage = imageLibrary[fallbackIndex];
-  
-  usedImagesSet.add(fallbackImage);
+  const decision = await getArticleImage(title, category, imageLibrary, { context: { usedFilenames: usedImagesSet } });
   
   return {
-    path: `/assets/images/all/${fallbackImage}`,
-    score: 0,
-    filename: fallbackImage,
-    method: 'fallback',
+    path: decision.image,
+    score: decision.tier === 'GPT' ? 10.0 : decision.tier === 'BRAND' ? 8.0 : decision.tier === 'KEYWORD' ? 5.0 : 0,
+    filename: decision.filename,
+    method: decision.tier === 'GPT' ? 'ai' : decision.tier === 'KEYWORD' || decision.tier === 'BRAND' ? 'keyword' : 'fallback',
   };
 }
 
 /**
- * SYNCHRONOUS version for client-side use
- * 
- * @param title - Article title
- * @param category - Article category
- * @param usedImagesSet - Set of already-used image filenames
- * @returns Object with path, score, and filename
+ * Legacy wrapper for backward compatibility
+ * @deprecated Use getArticleImageSync() directly which returns ImageDecision
  */
 export function getArticleImageWithScoreSync(
   title: string, 
@@ -687,65 +835,13 @@ export function getArticleImageWithScoreSync(
   usedImagesSet: Set<string> = new Set()
 ): { path: string; score: number; filename: string; method: 'keyword' | 'fallback' } {
   const imageLibrary = getImageLibrary();
-  const titleKeywords = extractKeywords(title);
-  
-  if (imageLibrary.length === 0 || titleKeywords.length === 0) {
-    // Use hash-based fallback if we have images but no keywords
-    if (imageLibrary.length > 0 && titleKeywords.length === 0) {
-      const titleHash = simpleHash(title);
-      const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-      const fallbackImage = imageLibrary[fallbackIndex];
-      usedImagesSet.add(fallbackImage);
-      return { 
-        path: `/assets/images/all/${fallbackImage}`, 
-        score: 0, 
-        filename: fallbackImage,
-        method: 'fallback',
-      };
-    }
-    
-    return { 
-      path: getDefaultPlaceholder(), 
-      score: 0, 
-      filename: 'default-placeholder',
-      method: 'fallback',
-    };
-  }
-  
-  const scoredImages = imageLibrary.map(imageFilename => ({
-    filename: imageFilename,
-    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
-  }));
-  
-  scoredImages.sort((a, b) => b.score - a.score);
-  const bestMatch = scoredImages[0];
-  
-  const titleHash = simpleHash(title);
-  const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
-  const persistentIndex = Math.floor(titleHash * topMatches.length);
-  const selectedImage = topMatches[persistentIndex] || bestMatch;
-  
-  usedImagesSet.add(selectedImage.filename);
-  
-  if (selectedImage.score > 0) {
-    return {
-      path: `/assets/images/all/${selectedImage.filename}`,
-      score: selectedImage.score,
-      filename: selectedImage.filename,
-      method: 'keyword',
-    };
-  }
-  
-  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-  const fallbackImage = imageLibrary[fallbackIndex];
-  
-  usedImagesSet.add(fallbackImage);
+  const decision = getArticleImageSync(title, category, imageLibrary, { context: { usedFilenames: usedImagesSet } });
   
   return {
-    path: `/assets/images/all/${fallbackImage}`,
-    score: 0,
-    filename: fallbackImage,
-    method: 'fallback',
+    path: decision.image,
+    score: decision.tier === 'KEYWORD' ? 5.0 : 0,
+    filename: decision.filename,
+    method: decision.tier === 'KEYWORD' || decision.tier === 'BRAND' ? 'keyword' : 'fallback',
   };
 }
 
@@ -825,21 +921,21 @@ export function isLocalImage(imagePath: string): boolean {
 }
 
 /**
- * Preview what image would be selected for a given title/category
+ * Preview what image would be selected for a given title
  * (Useful for testing before building)
  * ASYNC version to support AI curation
  * 
  * @param title - Article title
- * @param category - Article category
+ * @param description - Article description
  * @param useAI - Whether to use AI curation (default: false for preview)
- * @returns Object with selected image and score breakdown
+ * @returns Object with selected image decision
  */
 export async function previewImageSelection(
   title: string, 
-  category: string,
+  description: string = '',
   useAI: boolean = false
 ): Promise<{
-  selectedImage: string;
+  decision: ImageDecision;
   titleKeywords: string[];
   topMatches: Array<{ filename: string; score: number }>;
 }> {
@@ -848,11 +944,13 @@ export async function previewImageSelection(
   
   const scoredImages = imageLibrary.map(imageFilename => ({
     filename: imageFilename,
-    score: scoreImageMatch(titleKeywords, category, imageFilename),
+    score: scoreImageMatch(titleKeywords, '', imageFilename),
   })).sort((a, b) => b.score - a.score);
   
+  const decision = await getArticleImage(title, description, imageLibrary, { context: { usedFilenames: new Set() } });
+  
   return {
-    selectedImage: await getArticleImage(title, category, new Set(), useAI),
+    decision,
     titleKeywords,
     topMatches: scoredImages.slice(0, 5),
   };
@@ -862,11 +960,11 @@ export async function previewImageSelection(
  * SYNCHRONOUS preview for client-side use
  * 
  * @param title - Article title
- * @param category - Article category
- * @returns Object with selected image and score breakdown
+ * @param description - Article description
+ * @returns Object with selected image decision
  */
-export function previewImageSelectionSync(title: string, category: string): {
-  selectedImage: string;
+export function previewImageSelectionSync(title: string, description: string = ''): {
+  decision: ImageDecision;
   titleKeywords: string[];
   topMatches: Array<{ filename: string; score: number }>;
 } {
@@ -875,96 +973,14 @@ export function previewImageSelectionSync(title: string, category: string): {
   
   const scoredImages = imageLibrary.map(imageFilename => ({
     filename: imageFilename,
-    score: scoreImageMatch(titleKeywords, category, imageFilename),
+    score: scoreImageMatch(titleKeywords, '', imageFilename),
   })).sort((a, b) => b.score - a.score);
   
+  const decision = getArticleImageSync(title, description, imageLibrary, { context: { usedFilenames: new Set() } });
+  
   return {
-    selectedImage: getArticleImageSync(title, category),
+    decision,
     titleKeywords,
     topMatches: scoredImages.slice(0, 5),
   };
 }
-
-// ============================================================================
-// USAGE INSTRUCTIONS & EXAMPLES
-// ============================================================================
-
-/*
-HOW TO ADD NEW IMAGES (AUTOMATIC DISCOVERY):
-
-1. **Save Image to /public/assets/images/all/**
-   Use descriptive, keyword-rich filenames:
-   - ai-chatbot-conversation-assistant.jpg
-   - blockchain-crypto-finance-economy.jpg
-   - design-ux-ui-creative-interface.jpg
-   
-   ❗ IMPORTANT: No spaces in filenames!
-   ✅ Good: microsoft-logo.jpg
-   ❌ Bad: Microsoft Logo.jpg
-
-2. **That's it!** The system automatically discovers new images!
-   No code changes needed. Just add files to the folder.
-
-3. **Test & Deploy**
-   npm run dev    # Test locally (images auto-discovered)
-   npm run build  # Verify build
-   deploy         # Push to production
-
-The system uses fs.readdirSync to automatically find all images!
-
----
-
-NAMING BEST PRACTICES:
-
-✅ GOOD:
-- ai-robot-automation-manufacturing.jpg
-- startup-funding-venture-capital.jpg
-- python-machine-learning-tutorial.jpg
-
-❌ BAD:
-- IMG_1234.jpg (no keywords)
-- photo.jpg (not descriptive)
-- my-image-file.jpg (generic keywords)
-
----
-
-WHY THIS IS BETTER THAN CATEGORY FOLDERS:
-
-OLD SYSTEM:
-- Robot image in /breaking-ai/ → only used for Breaking AI articles
-- Need to duplicate same image across multiple category folders
-- Limited to 4-5 images per category
-
-NEW SYSTEM:
-- Robot image in /all/ → can match ANY article about robots
-- One image, infinite uses
-- 30+ images available for every article
-
----
-
-EXAMPLE MATCHES:
-
-Title: "OpenAI Releases GPT-5 Model"
-Keywords: [openai, releases, gpt, model]
-Best Match: ai-robot-future-technology.jpg
-Score: 3.0 (matches "ai")
-
-Title: "Stock Market Rallies on AI News"
-Keywords: [stock, market, rallies, news]
-Best Match: stock-market-trading-economy.jpg
-Score: 4.0 (matches "stock", "market", "economy")
-
-Title: "New Python Library for Machine Learning"
-Keywords: [python, library, machine, learning]
-Best Match: machine-learning-data-science.jpg
-Score: 4.5 (matches "machine", "learning" + bonus)
-
----
-
-MAINTENANCE:
-
-- Add 5-10 new images per week
-- Use descriptive filenames with multiple keywords
-- Aim for 100-200 images total
-- More images = better matching = more variety
-*/
