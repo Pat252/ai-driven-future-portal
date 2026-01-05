@@ -1,7 +1,7 @@
 import Parser from 'rss-parser';
 import { formatDistanceToNow } from 'date-fns';
 import { NewsItem } from '@/components/NewsCard';
-import { getArticleImage, getArticleImageWithScore } from './image-utils';
+import { getArticleImage, ImageSelectionContext, ImageDecision, isLikelyBrandArticle } from './image-utils';
 import { getCachedImage, setCachedImage } from './image-cache';
 
 // Custom parser with extended fields
@@ -83,60 +83,33 @@ const FEED_URLS = [
 ];
 
 // ============================================================================
-// 3-TIER IMAGE FALLBACK STRATEGY
-// ============================================================================
-// Tier 1: RSS feed images (if from trusted sources) - SKIPPED for copyright safety
-// Tier 2: Unsplash dynamic images (high-quality, royalty-free)
-// Tier 3: Local placeholders (owned assets, final fallback)
-// Last Updated: 2026-01-04
-// ============================================================================
-
-// ============================================================================
-// LOCAL-ONLY IMAGE STRATEGY (MAXIMUM CONTROL)
-// ============================================================================
-
-// ============================================================================
-// IMAGE CACHING - Persistent cache for GPT-4o-mini selections
-// ============================================================================
-// 
-// Persistent cache ensures GPT-4o-mini is called at most once per article,
-// even across:
-// - Server restarts
-// - ISR revalidation cycles
-// - Serverless cold starts
-// - Deployment rebuilds
-// 
-// Cache is stored at /.cache/image-cache.json
+// IMAGE SELECTION WITH CONTEXT (Per-Request Deduplication)
 // ============================================================================
 
 /**
- * Get image path - AI-POWERED SMART CURATOR with Caching
+ * Get image path with caching, context, and brand safety
  * 
- * INTELLIGENT SELECTION STRATEGY (Updated 2026-01-04):
- * - TIER 1: GPT-4o-mini AI curation (semantic understanding)
- * - TIER 2: Weighted keyword matching (fallback)
- * - TIER 3: Hash-based random (final fallback)
- * - CACHING: Only calls AI once per article (saves API costs)
- * - Visual diversity penalty (-5.0 for used images)
+ * NEW: Uses ImageDecision contract and per-request context
  * 
- * Philosophy:
- * - AI understands conceptual relationships beyond keywords
- * - "Agentic Metadata" → infrastructure images
- * - Nearby articles get different images (no logo spam)
- * - Same article always gets same image (bookmarkable UX)
- * - Cost: ~$0.01 per 1,000 NEW articles
+ * Flow:
+ * 1. Classify article (generic vs brand)
+ * 2. Check cache with brand safety validation
+ * 3. If miss, call getArticleImage() with context
+ * 4. Cache the decision
+ * 5. Register filename in context
+ * 6. Return image path
  * 
- * @param item - RSS feed item (IGNORED for images)
- * @param title - Article title (USED for AI/keyword matching)
- * @param category - Article category (used as scoring bonus)
- * @param usedImagesSet - Set of already-used images (for visual diversity)
- * @returns Promise<Local image path> (e.g., "/assets/images/all/bitcoins-money-dollars.jpg")
+ * @param title - Article title
+ * @param description - Article description
+ * @param imageLibrary - Array of available image filenames
+ * @param imageCtx - Per-request context for deduplication
+ * @returns Promise<Image path>
  */
 async function extractImage(
-  item: any, 
-  title: string, 
-  category: string,
-  usedImagesSet: Set<string> = new Set()
+  title: string,
+  description: string,
+  imageLibrary: string[],
+  imageCtx: ImageSelectionContext
 ): Promise<string> {
   // ============================================================================
   // LEGAL & COMPLIANT - 100% LOCAL-ONLY STRATEGY
@@ -149,37 +122,41 @@ async function extractImage(
   // ❌ Unsplash API - REMOVED (external dependency)
   // ❌ ANY external URLs - BLOCKED
   // 
-  // ✅ ONLY local files in /public/assets/images/all/ (97 owned images)
+  // ✅ ONLY local files in /public/assets/images/all/
   // ✅ AI-powered curation with GPT-4o-mini (~$0.01 per 1,000 articles)
+  // ✅ Brand safety enforced at all tiers
+  // ✅ Deterministic decision contract (ImageDecision)
   // ============================================================================
   
-  // Check persistent cache first to avoid duplicate AI calls
-  const cachedFilename = await getCachedImage(title);
+  // Classify article
+  const isGeneric = !isLikelyBrandArticle(title, description);
   
-  if (cachedFilename) {
-    // Cache hit! Return cached image path (NO AI call)
-    const cachedPath = `/assets/images/all/${cachedFilename}`;
+  // Check persistent cache first with validation
+  const cachedDecision = await getCachedImage(title, isGeneric);
+  
+  if (cachedDecision) {
+    // Cache hit! Register in context and return
+    imageCtx.usedFilenames.add(cachedDecision.filename);
     
-    // Still add to usedImagesSet for visual diversity in this render
-    usedImagesSet.add(cachedFilename);
+    console.log(`[Image Cache HIT] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${cachedDecision.filename} (tier: ${cachedDecision.tier})`);
     
-    console.log(`[Image Cache HIT] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${cachedFilename}`);
-    
-    return cachedPath;
+    return cachedDecision.image;
   }
   
-  // Cache miss - need to select image (AI or keyword matching)
+  // Cache miss - need to select image
   console.log(`[Image Cache MISS] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> Selecting image`);
-  const localImagePath = await getArticleImage(title, category, usedImagesSet);
   
-  // Extract filename from path and persist it to cache
-  const filename = localImagePath.split('/').pop() || '';
-  if (filename) {
-    await setCachedImage(title, filename);
-    usedImagesSet.add(filename);
-  }
+  const decision: ImageDecision = await getArticleImage(title, description, imageLibrary, { context: imageCtx });
   
-  return localImagePath;
+  // Log decision
+  console.log(`[ImageDecision v${decision.policyVersion}] tier=${decision.tier} file=${decision.filename} used=${imageCtx.usedFilenames.size} reason=${decision.reason}`);
+  
+  // Cache the decision (not just the filename)
+  await setCachedImage(title, decision);
+  
+  // Note: filename already registered in context by finalizeDecision()
+  
+  return decision.image;
 }
 
 /**
@@ -302,18 +279,19 @@ function extractAuthor(item: any, source: string): string {
 
 /**
  * Fetch and parse a single RSS feed with robust error handling
- * UPDATED: Now uses AI-powered Smart Curator with caching and visual diversity
+ * UPDATED: Now uses ImageDecision contract and per-request context
  */
-async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
+async function fetchFeed(
+  feedConfig: typeof FEED_URLS[0], 
+  imageLibrary: string[],
+  imageCtx: ImageSelectionContext
+): Promise<NewsItem[]> {
   const { url, category, categoryColor, source } = feedConfig;
   
   try {
     console.log(`Fetching feed from ${source}...`);
     const feed = await parser.parseURL(url);
     const items: NewsItem[] = [];
-    
-    // VISUAL DIVERSITY: Track used images within this feed to prevent duplicates
-    const usedImagesSet = new Set<string>();
 
     // Deep Buffer Strategy: Fetch 50 items instead of 20 for better retention
     // This keeps articles available for 2-3 days instead of 12 hours
@@ -327,16 +305,16 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
       }
 
       const articleTitle = sanitizeTitle(item.title || 'Untitled');
+      const articleDescription = sanitizeDescription(item.contentSnippet || (item as any).description || '');
       const pubDateString = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
       const pubDate = parseRSSDate(pubDateString);
       
-      // AI-Powered Smart Curator: Get contextually matched image with visual diversity
-      // This is now async to support AI curation
-      const selectedImage = await extractImage(item, articleTitle, category, usedImagesSet);
+      // Smart Image Selection with context (deduplication + brand safety)
+      const selectedImage = await extractImage(articleTitle, articleDescription, imageLibrary, imageCtx);
       
       items.push({
         title: articleTitle,
-        description: sanitizeDescription(item.contentSnippet || (item as any).description || ''),
+        description: articleDescription,
         category: category,
         categoryColor: categoryColor,
         image: selectedImage,
@@ -359,14 +337,33 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
 
 /**
  * Get all news data from RSS feeds with diversity and resilience
+ * UPDATED: Creates per-request context for image deduplication
  */
 export async function getNewsData(limit?: number): Promise<NewsItem[]> {
   try {
     console.log('Starting RSS feed fetch...');
     
+    // Create per-request context for image deduplication
+    const imageCtx: ImageSelectionContext = {
+      usedFilenames: new Set(),
+    };
+    
+    // Get image library once (will be cached)
+    const fs = require('fs');
+    const path = require('path');
+    const imagesDir = path.join(process.cwd(), 'public', 'assets', 'images', 'all');
+    const imageLibrary: string[] = fs.readdirSync(imagesDir)
+      .filter((file: string) => {
+        const ext = path.extname(file).toLowerCase();
+        return ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif'].includes(ext);
+      })
+      .sort();
+    
+    console.log(`✅ Loaded ${imageLibrary.length} images for selection`);
+    
     // Fetch all feeds in parallel with individual error handling
     const results = await Promise.allSettled(
-      FEED_URLS.map(feedConfig => fetchFeed(feedConfig))
+      FEED_URLS.map(feedConfig => fetchFeed(feedConfig, imageLibrary, imageCtx))
     );
 
     // Collect items by category for better interleaving
@@ -396,6 +393,7 @@ export async function getNewsData(limit?: number): Promise<NewsItem[]> {
     });
 
     console.log(`✅ Total items fetched: ${totalItems}`);
+    console.log(`✅ Unique images used on this page: ${imageCtx.usedFilenames.size}`);
     console.log(`Breaking AI: ${itemsByCategory['Breaking AI'].length}, Gen AI: ${itemsByCategory['Gen AI'].length}, AI Economy: ${itemsByCategory['AI Economy'].length}, Creative Tech: ${itemsByCategory['Creative Tech'].length}, Toolbox: ${itemsByCategory['Toolbox'].length}`);
 
     // SMART INTERLEAVING: Round-robin by SOURCE within each category

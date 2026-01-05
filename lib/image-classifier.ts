@@ -1,10 +1,11 @@
 /**
- * Image Type Classifier - Filename Semantics
+ * Image Type Classifier - Filename Semantics + CSV Metadata
  * 
- * Classifies images by filename prefix to enforce clear selection rules:
+ * Classifies images by filename prefix AND CSV metadata (defense-in-depth):
  * 
- * 1. Brand images: Start with company name (e.g., doordash-*)
+ * 1. Brand images: Start with "brand-" OR have CSV metadata indicating logos/trademarks
  *    - Used ONLY in Tier 1.5 (brand matching)
+ *    - Defense-in-depth: Filename prefix ALWAYS overrides CSV
  * 
  * 2. Subject images: Describe what's shown, NO category prefixes
  *    - Used in Tier 2 (keyword matching)
@@ -12,8 +13,106 @@
  * 3. Generic images: Start with *-generic-* (e.g., ai-generic-*)
  *    - Used ONLY in Tier 3 (final fallback)
  * 
- * Last Updated: 2026-01-04
+ * Last Updated: 2026-01-05 (Added defense-in-depth)
  */
+
+// ============================================================================
+// CSV METADATA INTERFACE (for type safety)
+// ============================================================================
+
+export interface ImageMetadata {
+  id: number;
+  filename: string;
+  extension: string;
+  source: string;
+  license: string;
+  paid_account: string;
+  logo_visible: string;
+  trademark_present: string;
+  primary_category: string;
+  context_type: string;
+  brand_name: string;
+  allowed_generic_articles: string;
+  allowed_brand_articles: string;
+  fallback_tier: string;
+  notes: string;
+}
+
+// ============================================================================
+// DEFENSE-IN-DEPTH: FILENAME-BASED BRAND DETECTION
+// ============================================================================
+
+/**
+ * Check if filename indicates a brand image (defense-in-depth)
+ * 
+ * This check ALWAYS runs BEFORE CSV metadata checks.
+ * Provides protection against CSV data errors.
+ * 
+ * @param filename - Image filename
+ * @returns true if filename starts with "brand-"
+ */
+export function isBrandByFilename(filename: string): boolean {
+  if (!filename) return false;
+  return filename.toLowerCase().startsWith('brand-');
+}
+
+// ============================================================================
+// COMPREHENSIVE BRAND DETECTION (CSV + FILENAME)
+// ============================================================================
+
+/**
+ * Check if an image is a brand image (comprehensive check)
+ * 
+ * Defense-in-depth approach:
+ * 1. Filename prefix check (ALWAYS WINS)
+ * 2. CSV metadata checks (category, logo, trademark)
+ * 3. Brand name presence
+ * 
+ * This ensures brand images are ALWAYS detected, even if CSV is incorrect.
+ * 
+ * @param metadata - Image metadata object from CSV
+ * @returns true if image is a brand image by ANY criterion
+ */
+export function isBrandImage(metadata: ImageMetadata): boolean {
+  // ✅ Defense-in-depth: filename prefix always wins
+  if (isBrandByFilename(metadata.filename)) {
+    return true;
+  }
+
+  // Check CSV metadata
+  return (
+    metadata.primary_category === "Brand" ||
+    metadata.logo_visible === "Yes" ||
+    metadata.trademark_present === "Yes" ||
+    Boolean(metadata.brand_name && metadata.brand_name.trim().length > 0)
+  );
+}
+
+/**
+ * Check if an image is safe for generic articles (strict filter)
+ * 
+ * For an image to be safe for generic articles, ALL must be true:
+ * 1. Filename does NOT start with "brand-" (defense-in-depth)
+ * 2. primary_category === "Generic"
+ * 3. logo_visible === "No"
+ * 4. trademark_present === "No"
+ * 
+ * @param metadata - Image metadata object from CSV
+ * @returns true if safe for generic articles
+ */
+export function isGenericSafe(metadata: ImageMetadata): boolean {
+  // ✅ Defense-in-depth: reject any brand- filename
+  if (isBrandByFilename(metadata.filename)) {
+    return false;
+  }
+
+  // Check CSV metadata
+  return (
+    metadata.primary_category === "Generic" &&
+    metadata.logo_visible === "No" &&
+    metadata.trademark_present === "No"
+  );
+}
 
 /**
  * Category prefixes that should be excluded from keyword matching

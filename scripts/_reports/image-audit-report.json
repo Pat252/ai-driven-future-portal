@@ -1,0 +1,373 @@
+{
+  "timestamp": "2026-01-05T20:34:57.420Z",
+  "summary": {
+    "files_in_folder": 140,
+    "csv_rows": 193,
+    "brand_files_by_filename": 55,
+    "brand_rows_by_metadata": 88,
+    "files_missing_from_csv": 0,
+    "csv_rows_missing_files": 53,
+    "mismatches": 14,
+    "critical_mismatches": 0
+  },
+  "details": {
+    "files_missing_from_csv": [],
+    "csv_rows_missing_files": [
+      {
+        "id": "8",
+        "filename": "brand-adobe-logo-laptop.jpg"
+      },
+      {
+        "id": "20",
+        "filename": "brand-bmo-branch-office.jpg"
+      },
+      {
+        "id": "21",
+        "filename": "brand-cibc-branch-office.jpg"
+      },
+      {
+        "id": "23",
+        "filename": "brand-cnn-office-building.jpg"
+      },
+      {
+        "id": "24",
+        "filename": "brand-doordash-logo-bag.jpg"
+      },
+      {
+        "id": "28",
+        "filename": "brand-gitlab.jpg"
+      },
+      {
+        "id": "30",
+        "filename": "brand-google-cloud.jpg"
+      },
+      {
+        "id": "38",
+        "filename": "brand-google-office-logo.jpg"
+      },
+      {
+        "id": "40",
+        "filename": "brand-grok-browser.jpg"
+      },
+      {
+        "id": "43",
+        "filename": "brand-linkedin-logo-mobile-02.jpg"
+      },
+      {
+        "id": "45",
+        "filename": "brand-macbook-pro.jpg"
+      },
+      {
+        "id": "48",
+        "filename": "brand-meta-logo-mobile-hand.jpg"
+      },
+      {
+        "id": "53",
+        "filename": "brand-microsoft-edge.jpg"
+      },
+      {
+        "id": "57",
+        "filename": "brand-microsoft-office-building.jpg"
+      },
+      {
+        "id": "70",
+        "filename": "brand-rbc-branch-office.jpg"
+      },
+      {
+        "id": "71",
+        "filename": "brand-scotiabank-branch-office.jpg"
+      },
+      {
+        "id": "91",
+        "filename": "cat-toolbox-coding-ide.jpg"
+      },
+      {
+        "id": "98",
+        "filename": "cpu-on-motherboard.jpg"
+      },
+      {
+        "id": "103",
+        "filename": "datacenter-01.jpg"
+      },
+      {
+        "id": "104",
+        "filename": "datacenter-02.jpg"
+      },
+      {
+        "id": "105",
+        "filename": "datacenter-03.jpg"
+      },
+      {
+        "id": "106",
+        "filename": "datacenter-04.jpg"
+      },
+      {
+        "id": "107",
+        "filename": "datacenter-05.jpg"
+      },
+      {
+        "id": "121",
+        "filename": "generic-ai-02.jpg"
+      },
+      {
+        "id": "122",
+        "filename": "generic-ai-03.jpg"
+      },
+      {
+        "id": "123",
+        "filename": "generic-ai-04.jpg"
+      },
+      {
+        "id": "124",
+        "filename": "generic-ai-05.jpg"
+      },
+      {
+        "id": "125",
+        "filename": "generic-ai-06.jpg"
+      },
+      {
+        "id": "126",
+        "filename": "generic-ai-07.jpg"
+      },
+      {
+        "id": "130",
+        "filename": "hack-the-web-image.jpg"
+      },
+      {
+        "id": "133",
+        "filename": "hiring-shaking-hands.jpg"
+      },
+      {
+        "id": "138",
+        "filename": "keyboard-under-wrapper.jpg"
+      },
+      {
+        "id": "148",
+        "filename": "llm-generic-02.jpg"
+      },
+      {
+        "id": "149",
+        "filename": "llm-generic-03.jpg"
+      },
+      {
+        "id": "151",
+        "filename": "machine-learning-03.jpg"
+      },
+      {
+        "id": "152",
+        "filename": "machine-learning-04.jpg"
+      },
+      {
+        "id": "154",
+        "filename": "machine-learning-06.jpg"
+      },
+      {
+        "id": "158",
+        "filename": "matrix-looking-laptop-dark.jpg"
+      },
+      {
+        "id": "164",
+        "filename": "networking-cabling.jpg"
+      },
+      {
+        "id": "169",
+        "filename": "python-laptop-code.jpg"
+      },
+      {
+        "id": "173",
+        "filename": "resignation-01.jpg"
+      },
+      {
+        "id": "175",
+        "filename": "robot-hand-holding-ai-words.jpg"
+      },
+      {
+        "id": "178",
+        "filename": "robot-sitting-bench-park-on-laptop.jpg"
+      },
+      {
+        "id": "180",
+        "filename": "scene-aerial-night-downtown-city.jpg"
+      },
+      {
+        "id": "181",
+        "filename": "scene-downtown-night-cit.jpg"
+      },
+      {
+        "id": "182",
+        "filename": "scrum-framwork.jpg"
+      },
+      {
+        "id": "183",
+        "filename": "server-01.jpg"
+      },
+      {
+        "id": "184",
+        "filename": "someone-typing-on-laptop.jpg"
+      },
+      {
+        "id": "186",
+        "filename": "teamwork-hands.jpg"
+      },
+      {
+        "id": "187",
+        "filename": "usa-dollar-flag.jpg"
+      },
+      {
+        "id": "191",
+        "filename": "woman-leaning-datacenter-glass-wall.jpg"
+      },
+      {
+        "id": "192",
+        "filename": "woman-looking-cube.jpg"
+      },
+      {
+        "id": "193",
+        "filename": "world-globe-on-desk.jpg"
+      }
+    ],
+    "mismatches": [
+      {
+        "filename": "chatgpt-3d-logo.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "chatgpt-article-on-laptop.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "chatgpt-atlas.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "confluence-company.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "gemini-3d-logo.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "gemini-logo-on-mobile.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "google-chrome-page.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "laptop-with-chatgpt-as-open-app.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "netflix-neon-red-logo.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "netflix-tv-red-glow.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "python-logo.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "wealthsimple-credit-card-on-table.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "whatsapp-3d-logo.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      },
+      {
+        "filename": "whatsapp-logo-mobile.jpg",
+        "type": "WARNING",
+        "issue": "Filename doesn't start with \"brand-\" but CSV marks as Brand",
+        "details": {
+          "primary_category": "Brand",
+          "logo_visible": "Yes",
+          "trademark_present": "Yes"
+        }
+      }
+    ]
+  },
+  "health_status": "WARNING"
+}

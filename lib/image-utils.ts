@@ -286,11 +286,13 @@ function finalizeDecision(
       finalFilename = anySafeImages[index];
       finalReason = `${decision.reason} → Replaced brand image with generic-safe`;
     } else {
-      // ABSOLUTE FALLBACK: Use placeholder if no generic-safe images
-      console.error('[CRITICAL] No generic-safe images available, using placeholder');
+      // ABSOLUTE FALLBACK: Use JPG placeholder if no generic-safe images
+      console.error('[CRITICAL] No generic-safe images available, using JPG fallback');
+      const fallbackFilename = 'ai-robot-future-technology.jpg';
+      ctx.usedFilenames.add(fallbackFilename);
       return {
-        image: getDefaultPlaceholder(),
-        filename: 'placeholder.jpg.svg',
+        image: withPublicPath(fallbackFilename),
+        filename: fallbackFilename,
         tier: 'HARD_FALLBACK',
         reason: 'No generic-safe images available',
         policyVersion: IMAGE_POLICY_VERSION,
@@ -456,13 +458,14 @@ export async function getArticleImage(
   // Setup context
   const ctx = opts?.context ?? { usedFilenames: new Set() };
   
-  // CLIENT-SIDE SAFETY: Return default placeholder if called in browser
+  // CLIENT-SIDE SAFETY: Return JPG fallback if called in browser
   if (typeof window !== 'undefined') {
-    console.warn('⚠️  getArticleImage() called on client-side, returning default placeholder');
-    ctx.usedFilenames.add('placeholder.jpg.svg');
+    console.warn('⚠️  getArticleImage() called on client-side, returning JPG fallback');
+    const fallbackFilename = 'ai-robot-future-technology.jpg';
+    ctx.usedFilenames.add(fallbackFilename);
     const decision: ImageDecision = {
-      image: getDefaultPlaceholder(),
-      filename: 'placeholder.jpg.svg',
+      image: withPublicPath(fallbackFilename),
+      filename: fallbackFilename,
       tier: 'HARD_FALLBACK',
       reason: 'Client-side call safety fallback',
       policyVersion: IMAGE_POLICY_VERSION,
@@ -470,13 +473,14 @@ export async function getArticleImage(
     return decision;
   }
   
-  // If no images found, return fallback immediately (ABSOLUTE GUARANTEE)
+  // If no images found, return JPG fallback immediately (ABSOLUTE GUARANTEE)
   if (imageLibrary.length === 0) {
     console.error('❌ No images found in library!');
-    ctx.usedFilenames.add('placeholder.jpg.svg');
+    const fallbackFilename = 'ai-robot-future-technology.jpg';
+    ctx.usedFilenames.add(fallbackFilename);
     const decision: ImageDecision = {
-      image: getDefaultPlaceholder(),
-      filename: 'placeholder.jpg.svg',
+      image: withPublicPath(fallbackFilename),
+      filename: fallbackFilename,
       tier: 'HARD_FALLBACK',
       reason: 'Empty image library',
       policyVersion: IMAGE_POLICY_VERSION,
@@ -676,25 +680,27 @@ export function getArticleImageSync(
 ): ImageDecision {
   const ctx = opts?.context ?? { usedFilenames: new Set() };
   
-  // CLIENT-SIDE SAFETY: Return default placeholder if called in browser
+  // CLIENT-SIDE SAFETY: Return JPG fallback if called in browser
   if (typeof window !== 'undefined') {
-    console.warn('⚠️  getArticleImageSync() called on client-side, returning default placeholder');
-    ctx.usedFilenames.add('placeholder.jpg.svg');
+    console.warn('⚠️  getArticleImageSync() called on client-side, returning JPG fallback');
+    const fallbackFilename = 'ai-robot-future-technology.jpg';
+    ctx.usedFilenames.add(fallbackFilename);
     return {
-      image: getDefaultPlaceholder(),
-      filename: 'placeholder.jpg.svg',
+      image: withPublicPath(fallbackFilename),
+      filename: fallbackFilename,
       tier: 'HARD_FALLBACK',
       reason: 'Client-side call safety fallback',
       policyVersion: IMAGE_POLICY_VERSION,
     };
   }
   
-  // If no images found, return fallback (ABSOLUTE GUARANTEE)
+  // If no images found, return JPG fallback (ABSOLUTE GUARANTEE)
   if (imageLibrary.length === 0) {
-    ctx.usedFilenames.add('placeholder.jpg.svg');
+    const fallbackFilename = 'ai-robot-future-technology.jpg';
+    ctx.usedFilenames.add(fallbackFilename);
     return {
-      image: getDefaultPlaceholder(),
-      filename: 'placeholder.jpg.svg',
+      image: withPublicPath(fallbackFilename),
+      filename: fallbackFilename,
       tier: 'HARD_FALLBACK',
       reason: 'Empty image library',
       policyVersion: IMAGE_POLICY_VERSION,
@@ -805,7 +811,7 @@ export function getArticleImageSync(
 // ============================================================================
 
 /**
- * Legacy wrapper for backward compatibility
+ * Legacy wrapper for backward compatibility (JPG ONLY)
  * @deprecated Use getArticleImage() directly which returns ImageDecision
  */
 export async function getArticleImageWithScore(
@@ -817,6 +823,17 @@ export async function getArticleImageWithScore(
   const imageLibrary = getImageLibrary();
   const decision = await getArticleImage(title, category, imageLibrary, { context: { usedFilenames: usedImagesSet } });
   
+  // Guarantee JPG only (should never happen, but safety check)
+  if (decision.filename.endsWith('.svg')) {
+    const fallbackFilename = 'ai-robot-future-technology.jpg';
+    return {
+      path: withPublicPath(fallbackFilename),
+      score: 0,
+      filename: fallbackFilename,
+      method: 'fallback',
+    };
+  }
+  
   return {
     path: decision.image,
     score: decision.tier === 'GPT' ? 10.0 : decision.tier === 'BRAND' ? 8.0 : decision.tier === 'KEYWORD' ? 5.0 : 0,
@@ -826,7 +843,7 @@ export async function getArticleImageWithScore(
 }
 
 /**
- * Legacy wrapper for backward compatibility
+ * Legacy wrapper for backward compatibility (JPG ONLY)
  * @deprecated Use getArticleImageSync() directly which returns ImageDecision
  */
 export function getArticleImageWithScoreSync(
@@ -836,6 +853,17 @@ export function getArticleImageWithScoreSync(
 ): { path: string; score: number; filename: string; method: 'keyword' | 'fallback' } {
   const imageLibrary = getImageLibrary();
   const decision = getArticleImageSync(title, category, imageLibrary, { context: { usedFilenames: usedImagesSet } });
+  
+  // Guarantee JPG only (should never happen, but safety check)
+  if (decision.filename.endsWith('.svg')) {
+    const fallbackFilename = 'ai-robot-future-technology.jpg';
+    return {
+      path: withPublicPath(fallbackFilename),
+      score: 0,
+      filename: fallbackFilename,
+      method: 'fallback',
+    };
+  }
   
   return {
     path: decision.image,
@@ -850,17 +878,17 @@ export function getArticleImageWithScoreSync(
 // ============================================================================
 
 /**
- * Get the default placeholder image
+ * Get the default placeholder image (JPG ONLY)
  * 
  * Used when:
  * - Image library is empty
  * - Title has no keywords
  * - As a last-resort fallback
  * 
- * @returns Path to default placeholder
+ * @returns Path to default placeholder (always JPG)
  */
 export function getDefaultPlaceholder(): string {
-  return '/assets/images/defaults/placeholder.jpg.svg';
+  return '/assets/images/all/ai-robot-future-technology.jpg';
 }
 
 // ============================================================================
