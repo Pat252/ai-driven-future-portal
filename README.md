@@ -19,6 +19,7 @@
 - [Project Structure](#project-structure)
 - [API Documentation](#api-documentation)
 - [RSS Feed Sources](#rss-feed-sources)
+- [Image System Architecture](#️-image-system-architecture)
 - [Deployment](#deployment)
 - [Performance](#performance)
 - [Contributing](#contributing)
@@ -31,11 +32,14 @@ AI Driven Future Portal is a sophisticated news aggregation platform that curate
 
 ### Key Highlights
 
-- **30+ RSS Feed Sources** - Aggregates content from TechCrunch, MIT Tech Review, OpenAI, Google, and more
+- **30+ RSS Feed Sources** - Aggregates content from TechCrunch, MIT Tech Review, OpenAI, Google, NVIDIA, Apple, and more
+- **AI-Powered Image Curation** - GPT-4o-mini intelligently matches articles to images based on semantic understanding
+- **Automatic Image Discovery** - Server-side file system scanning for zero-maintenance image management
 - **Intelligent Content Mixing** - Round-robin algorithm prevents source monopolization
 - **Real-Time Market Data** - Live crypto prices, stock quotes, and market overview
 - **Newsletter Integration** - Resend-powered email subscriptions
 - **ISR Caching** - 1-hour incremental static regeneration for optimal performance
+- **Copyright Compliant** - 100% local-only image system with owned assets
 - **Responsive Design** - Mobile-first with Tailwind CSS
 - **Dark Mode** - System-aware theme switching
 
@@ -44,9 +48,11 @@ AI Driven Future Portal is a sophisticated news aggregation platform that curate
 ### Content Aggregation
 - ✅ Parallel RSS feed fetching (30+ sources)
 - ✅ Smart interleaving by category and source
-- ✅ Robust image extraction with fallback system
+- ✅ Deep buffer strategy (50 items per feed for 2-3 day retention)
+- ✅ Robust link validation and error handling
 - ✅ Date parsing and relative time formatting
 - ✅ HTML sanitization and CDATA handling
+- ✅ Fair Use compliance (200 character description limit)
 
 ### User Experience
 - ✅ Hero section with featured story
@@ -56,13 +62,23 @@ AI Driven Future Portal is a sophisticated news aggregation platform that curate
 - ✅ Live market ticker
 - ✅ TradingView market overview widget (AI Economy page)
 
+### AI-Powered Image System
+- ✅ **GPT-4o-mini Integration** - Semantic image matching (~$0.01 per 1,000 articles)
+- ✅ **Automatic Image Discovery** - Server-side file system scanning (no hard-coded lists)
+- ✅ **Multi-Tier Fallback** - AI curation → Keyword matching → Hash-based selection
+- ✅ **Visual Diversity** - Prevents duplicate images in nearby articles
+- ✅ **Image Persistence** - Same article always gets same image (bookmarkable UX)
+- ✅ **97+ Local Images** - Copyright-compliant owned assets in `/public/assets/images/all/`
+- ✅ **Smart Caching** - In-memory cache prevents duplicate AI API calls
+
 ### Technical Features
 - ✅ Incremental Static Regeneration (ISR)
 - ✅ TypeScript for type safety
 - ✅ Server and Client Components
-- ✅ Image optimization with Next.js Image
+- ✅ Image optimization with Next.js Image (AVIF/WebP)
 - ✅ Error boundaries and graceful degradation
 - ✅ SEO-optimized metadata
+- ✅ Server-side only image processing (prevents client-side errors)
 
 ## 🛠 Tech Stack
 
@@ -80,11 +96,13 @@ AI Driven Future Portal is a sophisticated news aggregation platform that curate
 - **RSS Parser:** [rss-parser 3.13.0](https://www.npmjs.com/package/rss-parser)
 - **Email Service:** [Resend 6.6.0](https://resend.com/)
 - **Date Utilities:** [date-fns 4.1.0](https://date-fns.org/)
+- **AI Integration:** [OpenAI SDK 6.15.0](https://github.com/openai/openai-node) (GPT-4o-mini)
 
 ### External Services
 - **Crypto Data:** [CoinGecko API](https://www.coingecko.com/en/api) (Free, no key required)
 - **Stock Data:** [Finnhub API](https://finnhub.io/) (Optional)
 - **Market Widget:** [TradingView](https://www.tradingview.com/widget-docs/)
+- **AI Curation:** [OpenAI API](https://platform.openai.com/) (Optional, for smart image matching)
 
 ## 📦 Prerequisites
 
@@ -123,6 +141,10 @@ Before you begin, ensure you have the following installed:
    
    # Optional: Finnhub Stock API (for ticker component)
    NEXT_PUBLIC_FINNHUB_API_KEY=xxxxxxxxxxxxx
+   
+   # Optional: OpenAI API (for AI-powered image curation)
+   # Without this, system falls back to keyword matching
+   OPENAI_API_KEY=sk-xxxxxxxxxxxxx
    ```
 
 4. **Run the development server**
@@ -154,8 +176,11 @@ Before you begin, ensure you have the following installed:
 | Variable | Description | Where to Get It |
 |----------|-------------|-----------------|
 | `NEXT_PUBLIC_FINNHUB_API_KEY` | Finnhub API key for stock prices | [Finnhub API](https://finnhub.io/register) |
+| `OPENAI_API_KEY` | OpenAI API key for AI-powered image curation | [OpenAI Platform](https://platform.openai.com/api-keys) |
 
-**Note:** Without `NEXT_PUBLIC_FINNHUB_API_KEY`, the ticker will display crypto data and editorial items only (no stock prices).
+**Notes:**
+- Without `NEXT_PUBLIC_FINNHUB_API_KEY`, the ticker will display crypto data and editorial items only (no stock prices).
+- Without `OPENAI_API_KEY`, the image system will use keyword matching instead of AI curation (still fully functional).
 
 ## 🏃 Getting Started
 
@@ -198,34 +223,57 @@ ai-driven-future-portal/
 ├── app/
 │   ├── api/
 │   │   └── newsletter/
-│   │       └── route.ts          # Newsletter subscription API
+│   │       └── route.ts          # Newsletter subscription API (Resend)
 │   ├── category/
 │   │   └── [slug]/
-│   │       └── page.tsx          # Dynamic category pages
+│   │       └── page.tsx          # Dynamic category pages with ISR
 │   ├── privacy/
 │   │   └── page.tsx              # Privacy policy page
 │   ├── globals.css               # Global styles & CSS variables
 │   ├── layout.tsx                # Root layout with theme provider
-│   └── page.tsx                  # Homepage
+│   ├── page.tsx                  # Homepage (ISR: 1 hour revalidation)
+│   └── favicon.ico               # Site favicon
 ├── components/
-│   ├── Footer.tsx                # Site footer
-│   ├── Header.tsx                # Navigation header
-│   ├── Hero.tsx                  # Hero section with big story
+│   ├── Footer.tsx                # Site footer with links
+│   ├── Header.tsx                # Navigation header with categories
+│   ├── Hero.tsx                  # Hero section with featured story
 │   ├── MarketOverview.tsx        # TradingView market widget
 │   ├── NewsCard.tsx              # Individual news article card
 │   ├── NewsGrid.tsx              # News grid with newsletter CTA
-│   ├── ThemeProvider.tsx         # Theme context provider
-│   ├── ThemeToggle.tsx           # Dark/light mode toggle
-│   └── Ticker.tsx                # Live market ticker
+│   ├── ThemeProvider.tsx         # Theme context provider (next-themes)
+│   ├── ThemeToggle.tsx           # Dark/light mode toggle button
+│   └── Ticker.tsx                # Live market ticker (crypto/stocks)
 ├── lib/
-│   └── rss.ts                    # RSS feed aggregation engine
+│   ├── rss.ts                    # RSS feed aggregation engine
+│   ├── openai.ts                 # OpenAI client & AI curation logic
+│   ├── image-utils.ts            # Image selection & discovery system
+│   └── image-constants.ts        # Image path constants & helpers
 ├── public/
-│   └── logo.jpg                  # Site logo
-├── next.config.ts                # Next.js configuration
+│   ├── assets/
+│   │   └── images/
+│   │       ├── all/              # 97+ local images (auto-discovered)
+│   │       ├── categories/       # Category-specific placeholders
+│   │       └── defaults/         # Fallback placeholder images
+│   ├── logo.jpg                  # Site logo
+│   └── [other assets]            # SVG icons, etc.
+├── document/                     # Project documentation
+│   ├── AI_CURATOR_IMPLEMENTATION.md
+│   ├── DEPLOYMENT_GUIDE.md
+│   ├── IMAGE_SYSTEM_MIGRATION.md
+│   └── [other docs]
+├── next.config.ts                # Next.js config (image domains, etc.)
 ├── tailwind.config.ts            # Tailwind CSS configuration
 ├── tsconfig.json                 # TypeScript configuration
 └── package.json                  # Dependencies and scripts
 ```
+
+### Key Directories Explained
+
+- **`app/`** - Next.js 16 App Router pages and API routes
+- **`components/`** - React components (mix of Server and Client Components)
+- **`lib/`** - Core business logic (RSS parsing, image curation, AI integration)
+- **`public/assets/images/all/`** - Local image library (auto-discovered by system)
+- **`document/`** - Project documentation and implementation guides
 
 ## 📡 API Documentation
 
@@ -274,28 +322,44 @@ The platform aggregates content from **30+ RSS feeds** across 5 categories:
 - MIT Technology Review
 - Ars Technica
 - Wired
+- ScienceDaily AI
 
 ### Gen AI (Cyan Badge)
+**Models & Research Labs:**
 - OpenAI Blog
 - Google Developers (Gemini)
 - Hugging Face
 - DeepMind
+- NVIDIA Blog
+- Apple Machine Learning
+
+**IDEs & No-Code Builders:**
 - Replit
 - Vercel AI (v0)
 - GitHub Copilot
+
+**Agents & Orchestration:**
 - LangChain
 - n8n Automation
-- AutoGen
+- AutoGen (Microsoft)
+
+**Voice & Multimodal AI:**
 - AssemblyAI
 - Stability AI
-- Azure AI
+
+**Cloud Infrastructure:**
+- Azure AI (Microsoft)
 - AWS Machine Learning
+
+**Industry News:**
+- TechCrunch GenAI
 - Simon Willison's Blog
 
 ### AI Economy (Green Badge)
 - CNBC Tech
 - ZDNet
 - Fortune
+- The New Stack
 
 ### Creative Tech (Purple Badge)
 - The Verge
@@ -305,8 +369,10 @@ The platform aggregates content from **30+ RSS feeds** across 5 categories:
 ### Toolbox (Orange Badge)
 - HackerNoon
 - Dev.to AI
+- Towards Data Science
+- Machine Learning Mastery
 
-**Note:** The system uses intelligent interleaving to ensure diverse content representation and prevent any single source from dominating the feed.
+**Note:** The system uses intelligent interleaving by source within each category to ensure diverse content representation and prevent any single source from dominating the feed. Each feed fetches up to 50 items for 2-3 day content retention.
 
 ## 🚢 Deployment
 
@@ -332,9 +398,13 @@ The application can be deployed to any platform that supports Next.js:
 Make sure to configure all required environment variables in your hosting platform's dashboard:
 
 ```env
+# Required
 RESEND_API_KEY=re_xxxxxxxxxxxxx
 RESEND_AUDIENCE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-NEXT_PUBLIC_FINNHUB_API_KEY=xxxxxxxxxxxxx  # Optional
+
+# Optional
+NEXT_PUBLIC_FINNHUB_API_KEY=xxxxxxxxxxxxx
+OPENAI_API_KEY=sk-xxxxxxxxxxxxx
 ```
 
 ### Build Configuration
@@ -356,11 +426,14 @@ The project uses Next.js ISR (Incremental Static Regeneration) with a 1-hour rev
 
 ### Optimization Features
 
-- ✅ Parallel RSS feed fetching
-- ✅ Image lazy loading
+- ✅ Parallel RSS feed fetching (all 30+ feeds simultaneously)
+- ✅ Image lazy loading with Next.js Image component
 - ✅ CSS purging (unused Tailwind styles removed)
-- ✅ Static page generation
+- ✅ Static page generation with ISR
 - ✅ Client-side error boundaries
+- ✅ In-memory image caching (prevents duplicate AI calls)
+- ✅ Automatic image discovery (no manual list maintenance)
+- ✅ AVIF/WebP format optimization
 
 ## 🤝 Contributing
 
@@ -387,6 +460,26 @@ To add a new RSS feed source:
    }
    ```
 3. The system will automatically include it in the aggregation
+4. The feed will be fetched in parallel with all other feeds
+5. Content will be interleaved by source within the category
+
+### Adding New Images
+
+The image system uses **automatic discovery** - no code changes needed!
+
+1. **Add image to `/public/assets/images/all/`**
+   - Use descriptive, keyword-rich filenames (e.g., `ai-robot-automation.jpg`)
+   - Supported formats: `.jpg`, `.jpeg`, `.png`, `.webp`, `.svg`, `.gif`
+   - No spaces in filenames (use hyphens)
+
+2. **That's it!** The system automatically discovers new images on next build/restart
+
+3. **Best Practices:**
+   - Use multiple keywords in filename for better matching
+   - Example: `microsoft-logo-building.jpg` matches "Microsoft", "logo", "building"
+   - Avoid generic names like `image1.jpg` or `photo.png`
+
+**Note:** The AI curator will automatically use new images if they match article content semantically.
 
 ## 📄 License
 
@@ -399,10 +492,47 @@ For questions, support, or content removal requests:
 - **Email:** contact@aidrivenfuture.com
 - **Privacy Policy:** [/privacy](/privacy)
 
+## 🖼️ Image System Architecture
+
+### AI-Powered Smart Curation
+
+The platform uses a sophisticated 3-tier image selection system:
+
+1. **Tier 1: AI Curation (GPT-4o-mini)**
+   - Semantic understanding of article content
+   - Brand/logo matching (e.g., "OpenAI" → `openai-logo.jpg`)
+   - Conceptual matching (e.g., "Agentic Metadata" → infrastructure images)
+   - Cost: ~$0.01 per 1,000 articles
+   - Falls back gracefully if API key not configured
+
+2. **Tier 2: Keyword Matching**
+   - Weighted scoring system (+2.0 for category match, +1.5 per keyword)
+   - Visual diversity penalty (-5.0 for already-used images)
+   - Ensures nearby articles use different images
+
+3. **Tier 3: Hash-Based Fallback**
+   - Consistent selection based on article title hash
+   - Guarantees 100% coverage (every article gets an image)
+   - Same article always gets same image (persistence)
+
+### Automatic Discovery
+
+- **Server-side file system scanning** - No hard-coded image lists
+- **Caching** - Prevents repeated file system reads
+- **Zero maintenance** - Add images to folder, system finds them automatically
+- **97+ images** - Large library ensures variety and good matches
+
+### Copyright Compliance
+
+- **100% local-only** - All images are owned assets in `/public/assets/images/all/`
+- **No external URLs** - RSS feed images are ignored for copyright safety
+- **Fair Use** - Article descriptions truncated to 200 characters
+
 ## 🙏 Acknowledgments
 
 - Built with [Next.js](https://nextjs.org/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
+- AI-powered image curation with [OpenAI GPT-4o-mini](https://platform.openai.com/)
 - RSS feeds from various industry-leading publications
 - Market data from [CoinGecko](https://www.coingecko.com/) and [Finnhub](https://finnhub.io/)
 - Market widget by [TradingView](https://www.tradingview.com/)
