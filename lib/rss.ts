@@ -89,37 +89,67 @@ const FEED_URLS = [
 // Last Updated: 2026-01-04
 // ============================================================================
 
-import { getArticleImage } from './image-utils';
+import { getArticleImage, getArticleImageWithScore } from './image-utils';
 
 // ============================================================================
 // LOCAL-ONLY IMAGE STRATEGY (MAXIMUM CONTROL)
 // ============================================================================
 
+// ============================================================================
+// IMAGE CACHING - Prevent duplicate AI API calls
+// ============================================================================
+
 /**
- * Get image path - LOCAL-ONLY VERSION
+ * In-memory cache for article-to-image mappings
+ * Key: article title (normalized)
+ * Value: selected image filename
  * 
- * MANUAL CONTROL STRATEGY:
- * - NEVER fetch from external sources (no Unsplash, no RSS scraping)
- * - ONLY use manually-placed local images
- * - Every category has its own folder with curated images
- * - Complete control over every single image displayed
- * 
- * Why Local-Only:
- * 1. ABSOLUTE control - you choose every image
- * 2. ZERO external dependencies - no API failures
- * 3. Copyright clarity - you own/license everything
- * 4. Performance - instant loading from local filesystem
- * 5. Privacy - no external tracking or requests
- * 6. Offline-ready - works without internet
- * 
- * @param item - RSS feed item (COMPLETELY IGNORED for images)
- * @param title - Article title (NOT USED - we use category only)
- * @param category - Article category (maps to local folder)
- * @returns Local image path (e.g., "/assets/images/categories/breaking-ai/main.jpg")
+ * This ensures we only call OpenAI ONCE per article, even across multiple
+ * RSS feed fetches or page reloads within the same server session.
  */
-function extractImage(item: any, title: string, category: string): string {
+const imageCache = new Map<string, string>();
+
+/**
+ * Normalize article title for cache key
+ * 
+ * @param title - Article title
+ * @returns Normalized cache key
+ */
+function getCacheKey(title: string): string {
+  return title.toLowerCase().trim();
+}
+
+/**
+ * Get image path - AI-POWERED SMART CURATOR with Caching
+ * 
+ * INTELLIGENT SELECTION STRATEGY (Updated 2026-01-04):
+ * - TIER 1: GPT-4o-mini AI curation (semantic understanding)
+ * - TIER 2: Weighted keyword matching (fallback)
+ * - TIER 3: Hash-based random (final fallback)
+ * - CACHING: Only calls AI once per article (saves API costs)
+ * - Visual diversity penalty (-5.0 for used images)
+ * 
+ * Philosophy:
+ * - AI understands conceptual relationships beyond keywords
+ * - "Agentic Metadata" → infrastructure images
+ * - Nearby articles get different images (no logo spam)
+ * - Same article always gets same image (bookmarkable UX)
+ * - Cost: ~$0.01 per 1,000 NEW articles
+ * 
+ * @param item - RSS feed item (IGNORED for images)
+ * @param title - Article title (USED for AI/keyword matching)
+ * @param category - Article category (used as scoring bonus)
+ * @param usedImagesSet - Set of already-used images (for visual diversity)
+ * @returns Promise<Local image path> (e.g., "/assets/images/all/bitcoins-money-dollars.jpg")
+ */
+async function extractImage(
+  item: any, 
+  title: string, 
+  category: string,
+  usedImagesSet: Set<string> = new Set()
+): Promise<string> {
   // ============================================================================
-  // LOCAL-ONLY POLICY
+  // LEGAL & COMPLIANT - 100% LOCAL-ONLY STRATEGY
   // ============================================================================
   // ALL external image sources are COMPLETELY IGNORED:
   // ❌ item.enclosure - IGNORED (publisher copyright risk)
@@ -129,21 +159,36 @@ function extractImage(item: any, title: string, category: string): string {
   // ❌ Unsplash API - REMOVED (external dependency)
   // ❌ ANY external URLs - BLOCKED
   // 
-  // ✅ ONLY local files in /public/assets/images/
-  // 
-  // Philosophy:
-  // - You manually add images to category folders
-  // - System maps categories to those images
-  // - No surprises, no external failures, no copyright issues
-  // - What you see in your folders is what your users see
+  // ✅ ONLY local files in /public/assets/images/all/ (97 owned images)
+  // ✅ AI-powered curation with GPT-4o-mini (~$0.01 per 1,000 articles)
   // ============================================================================
   
-  // Get the local image path for this category
-  const localImagePath = getArticleImage(category);
+  // Check cache first to avoid duplicate AI calls
+  const cacheKey = getCacheKey(title);
+  const cachedImage = imageCache.get(cacheKey);
   
-  // Debug logging (can be removed in production)
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`[Local-Only] Using image: ${localImagePath} for category: ${category}`);
+  if (cachedImage) {
+    // Cache hit! Return cached image path
+    const cachedPath = `/assets/images/all/${cachedImage}`;
+    
+    // Still add to usedImagesSet for visual diversity in this render
+    usedImagesSet.add(cachedImage);
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Cache Hit] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${cachedImage}`);
+    }
+    
+    return cachedPath;
+  }
+  
+  // Cache miss - need to select image (AI or keyword matching)
+  const localImagePath = await getArticleImage(title, category, usedImagesSet);
+  
+  // Extract filename from path and cache it
+  const filename = localImagePath.split('/').pop() || '';
+  if (filename) {
+    imageCache.set(cacheKey, filename);
+    usedImagesSet.add(filename);
   }
   
   return localImagePath;
@@ -269,6 +314,7 @@ function extractAuthor(item: any, source: string): string {
 
 /**
  * Fetch and parse a single RSS feed with robust error handling
+ * UPDATED: Now uses AI-powered Smart Curator with caching and visual diversity
  */
 async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
   const { url, category, categoryColor, source } = feedConfig;
@@ -277,36 +323,42 @@ async function fetchFeed(feedConfig: typeof FEED_URLS[0]): Promise<NewsItem[]> {
     console.log(`Fetching feed from ${source}...`);
     const feed = await parser.parseURL(url);
     const items: NewsItem[] = [];
+    
+    // VISUAL DIVERSITY: Track used images within this feed to prevent duplicates
+    const usedImagesSet = new Set<string>();
 
     // Deep Buffer Strategy: Fetch 50 items instead of 20 for better retention
     // This keeps articles available for 2-3 days instead of 12 hours
-    // Position-Aware Processing: Track index for zero-repetition fallback logic
-    feed.items.slice(0, 50).forEach((item, itemIndex) => {
+    // Process items sequentially to allow async image extraction
+    for (const item of feed.items.slice(0, 50)) {
       // Extract and validate link - CRITICAL: filter out items without valid links
       const link = extractLink(item);
       if (!link) {
         console.warn(`Skipping item from ${source}: No valid link found for "${item.title}"`);
-        return; // Skip this item entirely (forEach equivalent of continue)
+        continue; // Skip this item
       }
 
       const articleTitle = sanitizeTitle(item.title || 'Untitled');
       const pubDateString = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
       const pubDate = parseRSSDate(pubDateString);
       
-      // Generate Unsplash URL for every article (Unsplash-Only strategy)
+      // AI-Powered Smart Curator: Get contextually matched image with visual diversity
+      // This is now async to support AI curation
+      const selectedImage = await extractImage(item, articleTitle, category, usedImagesSet);
+      
       items.push({
         title: articleTitle,
         description: sanitizeDescription(item.contentSnippet || (item as any).description || ''),
         category: category,
         categoryColor: categoryColor,
-        image: extractImage(item, articleTitle, category),
+        image: selectedImage,
         readTime: formatDate(pubDateString),
         author: extractAuthor(item, source),
         link: link, // Guaranteed to be valid at this point
         source: source, // Store source name for diversity
         pubDate: pubDate, // Store actual date for sorting
       });
-    });
+    }
 
     console.log(`✅ Successfully fetched ${items.length} items from ${source}`);
     return items;

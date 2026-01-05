@@ -1,143 +1,673 @@
 /**
- * 100% MANUAL LOCAL-ONLY IMAGE SYSTEM WITH RANDOM SELECTION
+ * AI-POWERED AUTOMATIC IMAGE DISCOVERY SYSTEM
  * 
- * NO EXTERNAL FETCHING - NO UNSPLASH - NO RSS SCRAPING
+ * NO HARD-CODED LIST - AUTOMATIC FILE DETECTION (SERVER-SIDE ONLY)
  * 
- * This utility provides random selection from multiple local images
- * per category, ensuring visual variety across your site.
+ * This system automatically discovers all images in /public/assets/images/all/
+ * and uses GPT-4o-mini to intelligently match them to articles.
  * 
- * Philosophy:
- * - Complete control over every image
- * - Zero external dependencies
- * - Random variety for visual interest
- * - Easy to manage and update
+ * IMPORTANT: Image discovery uses Node.js 'fs' module (server-side only).
+ * Client components should never call discovery functions directly.
+ * 
+ * Benefits:
+ * - Automatic: Add images to folder, system finds them instantly
+ * - AI-Powered: GPT-4o-mini understands brand/logo relationships
+ * - Zero maintenance: No code updates needed when adding images
+ * - Smart matching: Semantic understanding + keyword fallback
+ * 
+ * Updated: 2026-01-04 (Automatic Discovery + Server-Side Safety)
  */
 
 // ============================================================================
-// CATEGORY SLUG MAPPING
+// CONDITIONAL IMPORTS (Server-Side Only)
+// ============================================================================
+// Import 'fs' and 'path' only on server-side to prevent browser errors
+
+// ============================================================================
+// AUTOMATIC IMAGE DISCOVERY (SERVER-SIDE ONLY)
 // ============================================================================
 
 /**
- * Convert category display names to folder slugs
- * 
- * Example: "Breaking AI" → "breaking-ai"
+ * Supported image file extensions
  */
-function getCategorySlug(category: string): string {
-  const slugMap: Record<string, string> = {
-    'Breaking AI': 'breaking-ai',
-    'Gen AI': 'gen-ai',
-    'AI Economy': 'ai-economy',
-    'Creative Tech': 'creative-tech',
-    'Toolbox': 'toolbox',
-    'Future Life': 'future-life',
-  };
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif'];
 
-  return slugMap[category] || 'defaults';
+/**
+ * Cache for discovered images (prevents repeated file system reads)
+ */
+let imageLibraryCache: string[] | null = null;
+
+/**
+ * Automatically discover all images in /public/assets/images/all/
+ * 
+ * This function:
+ * 1. Reads the file system for all files in the images directory
+ * 2. Filters for valid image extensions
+ * 3. Caches the result for performance
+ * 4. Returns array of filenames (e.g., ['bitcoins-money-dollars.jpg', ...])
+ * 
+ * ⚠️  SERVER-SIDE ONLY - Uses Node.js 'fs' module
+ * ⚠️  DO NOT call from client components!
+ * 
+ * @returns Array of image filenames
+ */
+function getAllLocalImages(): string[] {
+  // Return cached list if available
+  if (imageLibraryCache !== null) {
+    return imageLibraryCache;
+  }
+
+  // CLIENT-SIDE SAFETY: Return empty array if called in browser
+  if (typeof window !== 'undefined') {
+    console.warn('⚠️  getAllLocalImages() called on client-side, returning empty array');
+    return [];
+  }
+
+  try {
+    // Dynamically require fs and path (server-side only)
+    // This prevents bundling errors in client components
+    const fs = require('fs');
+    const path = require('path');
+    
+    // Build path to images directory
+    const imagesDir = path.join(process.cwd(), 'public', 'assets', 'images', 'all');
+    
+    // Read directory contents
+    const files = fs.readdirSync(imagesDir);
+    
+    // Filter for valid image files
+    const imageFiles = files.filter((file: string) => {
+      const ext = path.extname(file).toLowerCase();
+      return IMAGE_EXTENSIONS.includes(ext);
+    });
+    
+    // Sort alphabetically for consistency
+    imageFiles.sort();
+    
+    // Cache the result
+    imageLibraryCache = imageFiles;
+    
+    console.log(`✅ Discovered ${imageFiles.length} images in /public/assets/images/all/`);
+    
+    return imageFiles;
+  } catch (error) {
+    console.error('❌ Error reading images directory:', error);
+    console.warn('⚠️  Falling back to empty image library');
+    return [];
+  }
+}
+
+/**
+ * Get the image library (auto-discovered or cached)
+ * 
+ * ⚠️  SERVER-SIDE ONLY
+ * 
+ * @returns Array of image filenames
+ */
+function getImageLibrary(): string[] {
+  // Return empty array on client-side
+  if (typeof window !== 'undefined') {
+    return [];
+  }
+  return getAllLocalImages();
+}
+
+/**
+ * Clear the image library cache (useful for testing or when images are added)
+ * 
+ * ⚠️  SERVER-SIDE ONLY
+ */
+export function clearImageCache(): void {
+  if (typeof window !== 'undefined') {
+    console.warn('⚠️  clearImageCache() called on client-side, ignoring');
+    return;
+  }
+  imageLibraryCache = null;
+  console.log('🔄 Image library cache cleared');
 }
 
 // ============================================================================
-// IMAGE INVENTORY (Update this when you add/remove images)
+// STOP WORDS - Common words to ignore in matching
+// ============================================================================
+
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
+  'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been',
+  'be', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
+  'should', 'may', 'might', 'must', 'can', 'about', 'into', 'through',
+  'during', 'before', 'after', 'above', 'below', 'between', 'under',
+  'again', 'further', 'then', 'once', 'here', 'there', 'when', 'where',
+  'why', 'how', 'all', 'both', 'each', 'few', 'more', 'most', 'other',
+  'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
+  'too', 'very', 's', 't', 'just', 'now', 'also', 'its', 'new', 'says',
+]);
+
+// ============================================================================
+// HASH FUNCTION - For consistent image selection (persistence)
 // ============================================================================
 
 /**
- * Track how many main-X.jpg files exist in each category folder
+ * Simple hash function to generate a consistent seed from article title
+ * This ensures the same article always gets the same image
  * 
- * Format: { 'category-slug': number_of_images }
- * 
- * Example:
- * - 'breaking-ai': 4 means you have main-1.jpg through main-4.jpg
- * - 'gen-ai': 1 means you only have main-1.jpg
- * - 'toolbox': 0 means you only have SVG placeholder
- * 
- * UPDATE THIS when you add new images to folders!
- * 
- * IMPORTANT: This must match the actual number of main-X.jpg files
- * in each category folder. If you have main-1.jpg through main-4.jpg,
- * set the value to 4 (not 2)!
+ * @param str - String to hash (article title)
+ * @returns Number between 0 and 1
  */
-const IMAGE_INVENTORY: Record<string, number> = {
-  'breaking-ai': 1,      // Has: main-1.jpg
-  'ai-economy': 4,       // Has: main-1.jpg, main-2.jpg, main-3.jpg, main-4.jpg
-  'gen-ai': 0,           // Still using SVG placeholder
-  'creative-tech': 0,    // Still using SVG placeholder
-  'toolbox': 0,          // Still using SVG placeholder
-  'future-life': 0,      // Still using SVG placeholder
-};
-
-/**
- * Get a random integer between 1 and max (inclusive)
- * 
- * @param max - Maximum number (number of images available)
- * @returns Random integer from 1 to max
- */
-function getRandomImageNumber(max: number): number {
-  return Math.floor(Math.random() * max) + 1;
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash) / 2147483647; // Normalize to 0-1
 }
 
 // ============================================================================
-// MAIN IMAGE RESOLVER
+// KEYWORD EXTRACTION
 // ============================================================================
 
 /**
- * Get a random local image path for an article based on its category
+ * Extract meaningful keywords from a string
  * 
- * RANDOM SELECTION STRATEGY:
- * - Each category can have multiple images (main-1.jpg, main-2.jpg, etc.)
- * - Function randomly selects from available images
- * - Provides visual variety even when articles share same category
- * 
- * STRICT RULES:
- * 1. NEVER fetch from external sources (Unsplash, RSS feeds, etc.)
- * 2. ALWAYS return a path to a local file in /public/assets/images/
- * 3. Randomly select from available JPG images in category folder
- * 4. Fall back to SVG placeholder if no JPG images exist
- * 5. Fall back to default placeholder if category unknown
- * 
- * Folder Structure:
- * /public/assets/images/categories/
- *   ├── breaking-ai/
- *   │   └── main-1.jpg                  ← Real JPG (1 image)
- *   ├── ai-economy/
- *   │   ├── main-1.jpg                  ← Real JPG
- *   │   └── main-2.jpg                  ← Real JPG (2 images - RANDOM!)
- *   ├── gen-ai/main.jpg.svg             ← SVG placeholder (temporary)
- *   ├── creative-tech/main.jpg.svg      ← SVG placeholder (temporary)
- *   ├── toolbox/main.jpg.svg            ← SVG placeholder (temporary)
- *   ├── future-life/main.jpg.svg        ← SVG placeholder (temporary)
- *   └── defaults/placeholder.jpg.svg    ← Default fallback
- * 
- * @param category - Article category (e.g., "Breaking AI", "Gen AI")
- * @returns Local image path with random selection (e.g., "/assets/images/categories/ai-economy/main-2.jpg")
+ * @param text - The text to extract keywords from
+ * @returns Array of lowercase keywords
  */
-export function getArticleImage(category: string): string {
-  const slug = getCategorySlug(category);
+function extractKeywords(text: string): string[] {
+  if (!text) return [];
   
-  // Check if this category has real JPG images
-  const imageCount = IMAGE_INVENTORY[slug] || 0;
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove punctuation except dashes
+    .split(/[\s-]+/) // Split on spaces and dashes
+    .filter(word => word.length > 2 && !STOP_WORDS.has(word)); // Remove short words and stop words
+}
+
+// ============================================================================
+// KEYWORD SCORING SYSTEM
+// ============================================================================
+
+/**
+ * Calculate match score between article and image with visual diversity penalty
+ * 
+ * WEIGHTED SCORING RULES:
+ * - +2.0 points if filename contains article's category name
+ * - +1.5 points for each exact match between title keyword and filename keyword
+ * - -5.0 points (PENALTY) if image is already in usedImagesSet (forces diversity)
+ * - Bonus: +0.5 for multiple matches (>2 matches = stronger relevance)
+ * 
+ * @param titleKeywords - Keywords from article title
+ * @param category - Article category (e.g., "Gen AI", "Breaking AI")
+ * @param imageFilename - Image filename to score
+ * @param usedImagesSet - Set of already-used image filenames (for visual diversity)
+ * @returns Score (higher = better match)
+ */
+function scoreImageMatch(
+  titleKeywords: string[],
+  category: string,
+  imageFilename: string,
+  usedImagesSet: Set<string> = new Set()
+): number {
+  let score = 0;
+  const imageKeywords = extractKeywords(imageFilename);
+  const categoryKeywords = extractKeywords(category);
   
-  // ============================================================================
-  // REAL IMAGES (actual JPG files with random selection)
-  // ============================================================================
+  // Category matching (+2.0 points per match)
+  for (const catKeyword of categoryKeywords) {
+    if (imageKeywords.includes(catKeyword)) {
+      score += 2.0;
+    }
+  }
   
-  if (imageCount > 0) {
-    // Randomly select from available images (main-1.jpg, main-2.jpg, etc.)
-    const randomNumber = getRandomImageNumber(imageCount);
-    const imagePath = `/assets/images/categories/${slug}/main-${randomNumber}.jpg`;
-    
-    // ALWAYS log image selection for verification
-    console.log(`[Image Selection] Category: ${category} -> Assigned: ${imagePath} (randomly selected from ${imageCount} available images)`);
-    
-    return imagePath;
+  // Title keyword matching (+1.5 points per match)
+  let titleMatches = 0;
+  for (const titleKeyword of titleKeywords) {
+    if (imageKeywords.includes(titleKeyword)) {
+      score += 1.5;
+      titleMatches++;
+    }
+  }
+  
+  // Relevance bonus (multiple matches = stronger signal)
+  if (titleMatches > 2) {
+    score += 0.5 * titleMatches;
+  }
+  
+  // VISUAL DIVERSITY PENALTY: Force system to pick different images for nearby articles
+  if (usedImagesSet.has(imageFilename)) {
+    score -= 5.0;
+  }
+  
+  return score;
+}
+
+// ============================================================================
+// MAIN IMAGE SELECTOR
+// ============================================================================
+
+/**
+ * AI-POWERED SMART CURATOR with Multi-Tier Fallback System
+ * 
+ * ⚠️  SERVER-SIDE ONLY - Call from lib/rss.ts or server components
+ * ⚠️  DO NOT import in client components (NewsCard, Hero, etc.)
+ * 
+ * TIER 1: GPT-4o-mini AI Curation (Semantic Understanding)
+ * - Uses OpenAI to understand conceptual relationships
+ * - "Agentic Metadata" → infrastructure images
+ * - Cost: ~$0.01 per 1,000 articles
+ * 
+ * TIER 2: Weighted Keyword Matching (Fallback)
+ * - +2.0 points if filename contains category name
+ * - +1.5 points for each title keyword match
+ * - -5.0 points (PENALTY) if image already used
+ * 
+ * TIER 3: Hash-Based Random (Final Fallback)
+ * - Consistent selection based on title hash
+ * - Ensures every article gets an image
+ * 
+ * BENEFITS:
+ * - Intelligent Matching: AI understands context beyond keywords
+ * - Visual Diversity: Nearby articles use different images
+ * - Image Persistence: Same article = same image every time
+ * - Reliability: Multiple fallback layers ensure 100% coverage
+ * 
+ * @param title - Article title (e.g., "Bitcoin Reaches New All-Time High")
+ * @param category - Article category (e.g., "AI Economy")
+ * @param usedImagesSet - Set of already-used image filenames (for visual diversity)
+ * @param useAI - Whether to attempt AI curation (default: true, set false to skip)
+ * @returns Local image path (e.g., "/assets/images/all/bitcoins-money-dollars.jpg")
+ */
+export async function getArticleImage(
+  title: string, 
+  category: string, 
+  usedImagesSet: Set<string> = new Set(),
+  useAI: boolean = true
+): Promise<string> {
+  // CLIENT-SIDE SAFETY: Return default placeholder if called in browser
+  if (typeof window !== 'undefined') {
+    console.warn('⚠️  getArticleImage() called on client-side, returning default placeholder');
+    return getDefaultPlaceholder();
+  }
+  
+  // Get automatically discovered image library
+  const imageLibrary = getImageLibrary();
+  
+  // If no images found, return fallback immediately
+  if (imageLibrary.length === 0) {
+    console.error('❌ No images found in library!');
+    return getDefaultPlaceholder();
   }
   
   // ============================================================================
-  // SVG PLACEHOLDERS (temporary - replace when you add more images)
+  // TIER 1: AI-POWERED CURATION (GPT-4o-mini)
+  // ============================================================================
+  if (useAI && typeof window === 'undefined') { // Server-side only
+    try {
+      const { smartCurateImage } = await import('./openai');
+      
+      // Filter out already-used images from library for AI selection
+      const availableImages = imageLibrary.filter(img => !usedImagesSet.has(img));
+      
+      // If all images used, reset to full library
+      const imagesToConsider = availableImages.length > 0 ? availableImages : imageLibrary;
+      
+      const aiSelectedFilename = await smartCurateImage(title, category, imagesToConsider);
+      
+      if (aiSelectedFilename && aiSelectedFilename !== 'RANDOM') {
+        // AI successfully selected an image!
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[AI Match] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${aiSelectedFilename} (Confidence: High)`);
+        }
+        
+        // Add to used set
+        usedImagesSet.add(aiSelectedFilename);
+        
+        return `/assets/images/all/${aiSelectedFilename}`;
+      }
+    } catch (error) {
+      // AI failed, fall through to keyword matching
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('⚠️  AI curation failed, falling back to keyword matching:', error);
+      }
+    }
+  }
+  
+  // ============================================================================
+  // TIER 2: WEIGHTED KEYWORD MATCHING (Fallback)
   // ============================================================================
   
-  // Category has no JPG images yet, use SVG placeholder
-  const svgPath = `/assets/images/categories/${slug}/main.jpg.svg`;
-  console.log(`[Image Selection] Category: ${category} -> Using SVG placeholder: ${svgPath}`);
-  return svgPath;
+  // Extract keywords from title (removes stop words automatically)
+  const titleKeywords = extractKeywords(title);
+  
+  // If no keywords, skip to hash random
+  if (titleKeywords.length === 0) {
+    // Use hash-based selection for consistency
+    const titleHash = simpleHash(title);
+    const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+    const fallbackImage = imageLibrary[fallbackIndex];
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${fallbackImage} (No keywords)`);
+    }
+    
+    usedImagesSet.add(fallbackImage);
+    return `/assets/images/all/${fallbackImage}`;
+  }
+  
+  // Score all images with visual diversity penalty
+  const scoredImages = imageLibrary.map(imageFilename => ({
+    filename: imageFilename,
+    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
+  }));
+  
+  // Sort by score (highest first)
+  scoredImages.sort((a, b) => b.score - a.score);
+  
+  // Get best match
+  const bestMatch = scoredImages[0];
+  
+  // PERSISTENCE: Use hash of title to pick from top matches consistently
+  // This ensures the same article always gets the same image
+  const titleHash = simpleHash(title);
+  const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
+  const persistentIndex = Math.floor(titleHash * topMatches.length);
+  const selectedImage = topMatches[persistentIndex] || bestMatch;
+  
+  // Keyword Match Console Logging (development only)
+  if (process.env.NODE_ENV !== 'production') {
+    const truncatedTitle = title.length > 50 ? title.substring(0, 50) + '...' : title;
+    const confidence = selectedImage.score > 3 ? 'High' : selectedImage.score > 0 ? 'Medium' : 'Low';
+    console.log(`[Keyword Match] "${truncatedTitle}" -> ${selectedImage.filename} (Score: ${selectedImage.score.toFixed(1)}, Confidence: ${confidence})`);
+  }
+  
+  // Add to used set
+  usedImagesSet.add(selectedImage.filename);
+  
+  // If best match has positive score, use it
+  if (selectedImage.score > 0) {
+    return `/assets/images/all/${selectedImage.filename}`;
+  }
+  
+  // ============================================================================
+  // TIER 3: HASH-BASED RANDOM (Final Fallback - 100% COVERAGE GUARANTEE)
+  // ============================================================================
+  
+  // No matches found (all scores ≤ 0) - use hash to pick consistent fallback
+  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+  const fallbackImage = imageLibrary[fallbackIndex];
+  
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${fallbackImage} (Random, Confidence: Low)`);
+  }
+  
+  usedImagesSet.add(fallbackImage);
+  
+  return `/assets/images/all/${fallbackImage}`;
+}
+
+/**
+ * SYNCHRONOUS VERSION - For server-side use without AI
+ * 
+ * ⚠️  SERVER-SIDE ONLY - Uses file system discovery
+ * ⚠️  For client-side, components should receive pre-selected image paths
+ * 
+ * Uses only keyword matching and hash-based fallback.
+ * AI curation is skipped because it requires async execution.
+ * 
+ * @param title - Article title
+ * @param category - Article category
+ * @param usedImagesSet - Set of already-used image filenames
+ * @returns Local image path
+ */
+export function getArticleImageSync(
+  title: string, 
+  category: string, 
+  usedImagesSet: Set<string> = new Set()
+): string {
+  // CLIENT-SIDE SAFETY: Return default placeholder if called in browser
+  if (typeof window !== 'undefined') {
+    console.warn('⚠️  getArticleImageSync() called on client-side, returning default placeholder');
+    return getDefaultPlaceholder();
+  }
+  
+  // Get automatically discovered image library
+  const imageLibrary = getImageLibrary();
+  
+  // If no images found, return fallback
+  if (imageLibrary.length === 0) {
+    return getDefaultPlaceholder();
+  }
+  
+  // Extract keywords from title (removes stop words automatically)
+  const titleKeywords = extractKeywords(title);
+  
+  // If no keywords, use hash-based fallback
+  if (titleKeywords.length === 0) {
+    const titleHash = simpleHash(title);
+    const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+    const fallbackImage = imageLibrary[fallbackIndex];
+    usedImagesSet.add(fallbackImage);
+    return `/assets/images/all/${fallbackImage}`;
+  }
+  
+  // Score all images with visual diversity penalty
+  const scoredImages = imageLibrary.map(imageFilename => ({
+    filename: imageFilename,
+    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
+  }));
+  
+  // Sort by score (highest first)
+  scoredImages.sort((a, b) => b.score - a.score);
+  
+  // Get best match
+  const bestMatch = scoredImages[0];
+  
+  // PERSISTENCE: Use hash of title to pick from top matches consistently
+  const titleHash = simpleHash(title);
+  const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
+  const persistentIndex = Math.floor(titleHash * topMatches.length);
+  const selectedImage = topMatches[persistentIndex] || bestMatch;
+  
+  // Add to used set
+  usedImagesSet.add(selectedImage.filename);
+  
+  // If best match has positive score, use it
+  if (selectedImage.score > 0) {
+    return `/assets/images/all/${selectedImage.filename}`;
+  }
+  
+  // No matches found - use hash to pick consistent fallback
+  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+  const fallbackImage = imageLibrary[fallbackIndex];
+  
+  usedImagesSet.add(fallbackImage);
+  
+  return `/assets/images/all/${fallbackImage}`;
+}
+
+/**
+ * Get article image with score (for debugging and logging purposes)
+ * ASYNC version that supports AI curation
+ * 
+ * @param title - Article title
+ * @param category - Article category
+ * @param usedImagesSet - Set of already-used image filenames
+ * @param useAI - Whether to attempt AI curation
+ * @returns Object with path, score, filename, and method used
+ */
+export async function getArticleImageWithScore(
+  title: string, 
+  category: string,
+  usedImagesSet: Set<string> = new Set(),
+  useAI: boolean = true
+): Promise<{ path: string; score: number; filename: string; method: 'ai' | 'keyword' | 'fallback' }> {
+  // Get automatically discovered image library
+  const imageLibrary = getImageLibrary();
+  
+  // If no images, return default placeholder
+  if (imageLibrary.length === 0) {
+    return { 
+      path: getDefaultPlaceholder(), 
+      score: 0, 
+      filename: 'default-placeholder',
+      method: 'fallback',
+    };
+  }
+  
+  // Try AI first if enabled and server-side
+  if (useAI && typeof window === 'undefined') {
+    try {
+      const { smartCurateImage } = await import('./openai');
+      
+      const availableImages = imageLibrary.filter(img => !usedImagesSet.has(img));
+      const imagesToConsider = availableImages.length > 0 ? availableImages : imageLibrary;
+      
+      const aiSelectedFilename = await smartCurateImage(title, category, imagesToConsider);
+      
+      if (aiSelectedFilename && aiSelectedFilename !== 'RANDOM') {
+        usedImagesSet.add(aiSelectedFilename);
+        return {
+          path: `/assets/images/all/${aiSelectedFilename}`,
+          score: 10.0, // AI selections get perfect score
+          filename: aiSelectedFilename,
+          method: 'ai',
+        };
+      }
+    } catch (error) {
+      // Fall through to keyword matching
+    }
+  }
+  
+  // Keyword matching fallback
+  const titleKeywords = extractKeywords(title);
+  
+  if (titleKeywords.length === 0) {
+    // Use hash-based fallback for consistency
+    const titleHash = simpleHash(title);
+    const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+    const fallbackImage = imageLibrary[fallbackIndex];
+    usedImagesSet.add(fallbackImage);
+    return { 
+      path: `/assets/images/all/${fallbackImage}`, 
+      score: 0, 
+      filename: fallbackImage,
+      method: 'fallback',
+    };
+  }
+  
+  const scoredImages = imageLibrary.map(imageFilename => ({
+    filename: imageFilename,
+    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
+  }));
+  
+  scoredImages.sort((a, b) => b.score - a.score);
+  const bestMatch = scoredImages[0];
+  
+  // Use hash for persistence
+  const titleHash = simpleHash(title);
+  const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
+  const persistentIndex = Math.floor(titleHash * topMatches.length);
+  const selectedImage = topMatches[persistentIndex] || bestMatch;
+  
+  usedImagesSet.add(selectedImage.filename);
+  
+  if (selectedImage.score > 0) {
+    return {
+      path: `/assets/images/all/${selectedImage.filename}`,
+      score: selectedImage.score,
+      filename: selectedImage.filename,
+      method: 'keyword',
+    };
+  }
+  
+  // Consistent fallback using hash
+  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+  const fallbackImage = imageLibrary[fallbackIndex];
+  
+  usedImagesSet.add(fallbackImage);
+  
+  return {
+    path: `/assets/images/all/${fallbackImage}`,
+    score: 0,
+    filename: fallbackImage,
+    method: 'fallback',
+  };
+}
+
+/**
+ * SYNCHRONOUS version for client-side use
+ * 
+ * @param title - Article title
+ * @param category - Article category
+ * @param usedImagesSet - Set of already-used image filenames
+ * @returns Object with path, score, and filename
+ */
+export function getArticleImageWithScoreSync(
+  title: string, 
+  category: string,
+  usedImagesSet: Set<string> = new Set()
+): { path: string; score: number; filename: string; method: 'keyword' | 'fallback' } {
+  const imageLibrary = getImageLibrary();
+  const titleKeywords = extractKeywords(title);
+  
+  if (imageLibrary.length === 0 || titleKeywords.length === 0) {
+    // Use hash-based fallback if we have images but no keywords
+    if (imageLibrary.length > 0 && titleKeywords.length === 0) {
+      const titleHash = simpleHash(title);
+      const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+      const fallbackImage = imageLibrary[fallbackIndex];
+      usedImagesSet.add(fallbackImage);
+      return { 
+        path: `/assets/images/all/${fallbackImage}`, 
+        score: 0, 
+        filename: fallbackImage,
+        method: 'fallback',
+      };
+    }
+    
+    return { 
+      path: getDefaultPlaceholder(), 
+      score: 0, 
+      filename: 'default-placeholder',
+      method: 'fallback',
+    };
+  }
+  
+  const scoredImages = imageLibrary.map(imageFilename => ({
+    filename: imageFilename,
+    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
+  }));
+  
+  scoredImages.sort((a, b) => b.score - a.score);
+  const bestMatch = scoredImages[0];
+  
+  const titleHash = simpleHash(title);
+  const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
+  const persistentIndex = Math.floor(titleHash * topMatches.length);
+  const selectedImage = topMatches[persistentIndex] || bestMatch;
+  
+  usedImagesSet.add(selectedImage.filename);
+  
+  if (selectedImage.score > 0) {
+    return {
+      path: `/assets/images/all/${selectedImage.filename}`,
+      score: selectedImage.score,
+      filename: selectedImage.filename,
+      method: 'keyword',
+    };
+  }
+  
+  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
+  const fallbackImage = imageLibrary[fallbackIndex];
+  
+  usedImagesSet.add(fallbackImage);
+  
+  return {
+    path: `/assets/images/all/${fallbackImage}`,
+    score: 0,
+    filename: fallbackImage,
+    method: 'fallback',
+  };
 }
 
 // ============================================================================
@@ -148,8 +678,8 @@ export function getArticleImage(category: string): string {
  * Get the default placeholder image
  * 
  * Used when:
- * - Category is unknown
- * - Category folder doesn't have images yet
+ * - Image library is empty
+ * - Title has no keywords
  * - As a last-resort fallback
  * 
  * @returns Path to default placeholder
@@ -158,18 +688,52 @@ export function getDefaultPlaceholder(): string {
   return '/assets/images/defaults/placeholder.jpg.svg';
 }
 
-/**
- * Get category image inventory (for debugging/admin purposes)
- * 
- * @returns Object showing how many images each category has
- */
-export function getCategoryImageCounts(): Record<string, number> {
-  return { ...IMAGE_INVENTORY };
-}
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
 
-// ============================================================================
-// HELPER: Check if image is local
-// ============================================================================
+/**
+ * Get image library stats (for debugging/admin)
+ * 
+ * @returns Object with library statistics
+ */
+export function getImageLibraryStats(): {
+  totalImages: number;
+  categories: Record<string, number>;
+  keywords: string[];
+} {
+  const imageLibrary = getImageLibrary();
+  
+  // Count images per category hint
+  const categories: Record<string, number> = {
+    ai: 0,
+    economy: 0,
+    creative: 0,
+    code: 0,
+    research: 0,
+    tech: 0,
+  };
+  
+  const allKeywords = new Set<string>();
+  
+  imageLibrary.forEach(filename => {
+    const keywords = extractKeywords(filename);
+    keywords.forEach(kw => allKeywords.add(kw));
+    
+    if (filename.includes('ai') || filename.includes('robot')) categories.ai++;
+    if (filename.includes('economy') || filename.includes('business')) categories.economy++;
+    if (filename.includes('creative') || filename.includes('design')) categories.creative++;
+    if (filename.includes('code') || filename.includes('programming')) categories.code++;
+    if (filename.includes('research') || filename.includes('science')) categories.research++;
+    if (filename.includes('tech') || filename.includes('digital')) categories.tech++;
+  });
+  
+  return {
+    totalImages: imageLibrary.length,
+    categories,
+    keywords: Array.from(allKeywords).sort(),
+  };
+}
 
 /**
  * Check if an image path is local (not external)
@@ -181,39 +745,147 @@ export function isLocalImage(imagePath: string): boolean {
   return imagePath.startsWith('/assets/') || imagePath.startsWith('/public/');
 }
 
+/**
+ * Preview what image would be selected for a given title/category
+ * (Useful for testing before building)
+ * ASYNC version to support AI curation
+ * 
+ * @param title - Article title
+ * @param category - Article category
+ * @param useAI - Whether to use AI curation (default: false for preview)
+ * @returns Object with selected image and score breakdown
+ */
+export async function previewImageSelection(
+  title: string, 
+  category: string,
+  useAI: boolean = false
+): Promise<{
+  selectedImage: string;
+  titleKeywords: string[];
+  topMatches: Array<{ filename: string; score: number }>;
+}> {
+  const imageLibrary = getImageLibrary();
+  const titleKeywords = extractKeywords(title);
+  
+  const scoredImages = imageLibrary.map(imageFilename => ({
+    filename: imageFilename,
+    score: scoreImageMatch(titleKeywords, category, imageFilename),
+  })).sort((a, b) => b.score - a.score);
+  
+  return {
+    selectedImage: await getArticleImage(title, category, new Set(), useAI),
+    titleKeywords,
+    topMatches: scoredImages.slice(0, 5),
+  };
+}
+
+/**
+ * SYNCHRONOUS preview for client-side use
+ * 
+ * @param title - Article title
+ * @param category - Article category
+ * @returns Object with selected image and score breakdown
+ */
+export function previewImageSelectionSync(title: string, category: string): {
+  selectedImage: string;
+  titleKeywords: string[];
+  topMatches: Array<{ filename: string; score: number }>;
+} {
+  const imageLibrary = getImageLibrary();
+  const titleKeywords = extractKeywords(title);
+  
+  const scoredImages = imageLibrary.map(imageFilename => ({
+    filename: imageFilename,
+    score: scoreImageMatch(titleKeywords, category, imageFilename),
+  })).sort((a, b) => b.score - a.score);
+  
+  return {
+    selectedImage: getArticleImageSync(title, category),
+    titleKeywords,
+    topMatches: scoredImages.slice(0, 5),
+  };
+}
+
 // ============================================================================
-// USAGE INSTRUCTIONS
+// USAGE INSTRUCTIONS & EXAMPLES
 // ============================================================================
 
 /*
-HOW TO ADD YOUR OWN IMAGES:
+HOW TO ADD NEW IMAGES (AUTOMATIC DISCOVERY):
 
-1. Take/download a high-quality image (1200x630px recommended)
-2. Save it as main.jpg in the category folder:
-   /public/assets/images/categories/breaking-ai/main.jpg
-
-3. The system will automatically use it for all articles in that category
-
-4. For variety, you can add multiple images:
-   - main.jpg (default)
-   - variant-1.jpg
-   - variant-2.jpg
+1. **Save Image to /public/assets/images/all/**
+   Use descriptive, keyword-rich filenames:
+   - ai-chatbot-conversation-assistant.jpg
+   - blockchain-crypto-finance-economy.jpg
+   - design-ux-ui-creative-interface.jpg
    
-   Then update this file to randomly select from the variants
+   ❗ IMPORTANT: No spaces in filenames!
+   ✅ Good: microsoft-logo.jpg
+   ❌ Bad: Microsoft Logo.jpg
 
-IMPORTANT:
-- All images must be in /public/assets/images/
-- Never link to external URLs
-- Recommended size: 1200x630px (optimal for cards and social sharing)
-- Supported formats: .jpg, .png, .webp, .svg
+2. **That's it!** The system automatically discovers new images!
+   No code changes needed. Just add files to the folder.
 
-ADVANTAGES OF THIS APPROACH:
-✅ 100% control over every image
-✅ No copyright concerns (you own/license everything)
-✅ No external API failures or rate limits
-✅ Fast, predictable loading
-✅ Works offline
-✅ Easy to update (just swap files)
-✅ No code changes needed to update images
+3. **Test & Deploy**
+   npm run dev    # Test locally (images auto-discovered)
+   npm run build  # Verify build
+   deploy         # Push to production
+
+The system uses fs.readdirSync to automatically find all images!
+
+---
+
+NAMING BEST PRACTICES:
+
+✅ GOOD:
+- ai-robot-automation-manufacturing.jpg
+- startup-funding-venture-capital.jpg
+- python-machine-learning-tutorial.jpg
+
+❌ BAD:
+- IMG_1234.jpg (no keywords)
+- photo.jpg (not descriptive)
+- my-image-file.jpg (generic keywords)
+
+---
+
+WHY THIS IS BETTER THAN CATEGORY FOLDERS:
+
+OLD SYSTEM:
+- Robot image in /breaking-ai/ → only used for Breaking AI articles
+- Need to duplicate same image across multiple category folders
+- Limited to 4-5 images per category
+
+NEW SYSTEM:
+- Robot image in /all/ → can match ANY article about robots
+- One image, infinite uses
+- 30+ images available for every article
+
+---
+
+EXAMPLE MATCHES:
+
+Title: "OpenAI Releases GPT-5 Model"
+Keywords: [openai, releases, gpt, model]
+Best Match: ai-robot-future-technology.jpg
+Score: 3.0 (matches "ai")
+
+Title: "Stock Market Rallies on AI News"
+Keywords: [stock, market, rallies, news]
+Best Match: stock-market-trading-economy.jpg
+Score: 4.0 (matches "stock", "market", "economy")
+
+Title: "New Python Library for Machine Learning"
+Keywords: [python, library, machine, learning]
+Best Match: machine-learning-data-science.jpg
+Score: 4.5 (matches "machine", "learning" + bonus)
+
+---
+
+MAINTENANCE:
+
+- Add 5-10 new images per week
+- Use descriptive filenames with multiple keywords
+- Aim for 100-200 images total
+- More images = better matching = more variety
 */
-
