@@ -1,6 +1,8 @@
 import Parser from 'rss-parser';
 import { formatDistanceToNow } from 'date-fns';
 import { NewsItem } from '@/components/NewsCard';
+import { getArticleImage, getArticleImageWithScore } from './image-utils';
+import { getCachedImage, setCachedImage } from './image-cache';
 
 // Custom parser with extended fields
 const parser = new Parser({
@@ -89,35 +91,23 @@ const FEED_URLS = [
 // Last Updated: 2026-01-04
 // ============================================================================
 
-import { getArticleImage, getArticleImageWithScore } from './image-utils';
-
 // ============================================================================
 // LOCAL-ONLY IMAGE STRATEGY (MAXIMUM CONTROL)
 // ============================================================================
 
 // ============================================================================
-// IMAGE CACHING - Prevent duplicate AI API calls
+// IMAGE CACHING - Persistent cache for GPT-4o-mini selections
 // ============================================================================
-
-/**
- * In-memory cache for article-to-image mappings
- * Key: article title (normalized)
- * Value: selected image filename
- * 
- * This ensures we only call OpenAI ONCE per article, even across multiple
- * RSS feed fetches or page reloads within the same server session.
- */
-const imageCache = new Map<string, string>();
-
-/**
- * Normalize article title for cache key
- * 
- * @param title - Article title
- * @returns Normalized cache key
- */
-function getCacheKey(title: string): string {
-  return title.toLowerCase().trim();
-}
+// 
+// Persistent cache ensures GPT-4o-mini is called at most once per article,
+// even across:
+// - Server restarts
+// - ISR revalidation cycles
+// - Serverless cold starts
+// - Deployment rebuilds
+// 
+// Cache is stored at /.cache/image-cache.json
+// ============================================================================
 
 /**
  * Get image path - AI-POWERED SMART CURATOR with Caching
@@ -163,31 +153,29 @@ async function extractImage(
   // ✅ AI-powered curation with GPT-4o-mini (~$0.01 per 1,000 articles)
   // ============================================================================
   
-  // Check cache first to avoid duplicate AI calls
-  const cacheKey = getCacheKey(title);
-  const cachedImage = imageCache.get(cacheKey);
+  // Check persistent cache first to avoid duplicate AI calls
+  const cachedFilename = await getCachedImage(title);
   
-  if (cachedImage) {
-    // Cache hit! Return cached image path
-    const cachedPath = `/assets/images/all/${cachedImage}`;
+  if (cachedFilename) {
+    // Cache hit! Return cached image path (NO AI call)
+    const cachedPath = `/assets/images/all/${cachedFilename}`;
     
     // Still add to usedImagesSet for visual diversity in this render
-    usedImagesSet.add(cachedImage);
+    usedImagesSet.add(cachedFilename);
     
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Cache Hit] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${cachedImage}`);
-    }
+    console.log(`[Image Cache HIT] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${cachedFilename}`);
     
     return cachedPath;
   }
   
   // Cache miss - need to select image (AI or keyword matching)
+  console.log(`[Image Cache MISS] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> Selecting image`);
   const localImagePath = await getArticleImage(title, category, usedImagesSet);
   
-  // Extract filename from path and cache it
+  // Extract filename from path and persist it to cache
   const filename = localImagePath.split('/').pop() || '';
   if (filename) {
-    imageCache.set(cacheKey, filename);
+    await setCachedImage(title, filename);
     usedImagesSet.add(filename);
   }
   

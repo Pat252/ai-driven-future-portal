@@ -31,8 +31,13 @@ export default function NewsCard({ news }: NewsCardProps) {
   // - Simple fallback: Local category image → Default placeholder
   // ============================================================================
   
+  // Final UI fallback: Validate image path before use
+  // Treat article.image as untrusted - ensure it's a valid /assets/ path
   const defaultFallback = getDefaultPlaceholder();
-  const [imgSrc, setImgSrc] = useState(news.image || defaultFallback);
+  const safeImagePath = news.image && news.image.startsWith('/assets/') 
+    ? news.image 
+    : '/assets/images/all/ai-robot-future-technology.jpg.svg';
+  const [imgSrc, setImgSrc] = useState(safeImagePath);
   const link = news.link || '#';
   
   // Simple fallback: If local image fails, use default placeholder

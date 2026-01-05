@@ -18,6 +18,10 @@
  * Updated: 2026-01-04 (Automatic Discovery + Server-Side Safety)
  */
 
+import { getGenericImageForArticle } from './generic-images';
+import { findBrandMatches, selectBrandImage } from './brand-matcher';
+import { filterSubjectImages, filterGenericImages } from './image-classifier';
+
 // ============================================================================
 // CONDITIONAL IMPORTS (Server-Side Only)
 // ============================================================================
@@ -301,7 +305,11 @@ export async function getArticleImage(
   // ============================================================================
   // TIER 1: AI-POWERED CURATION (GPT-4o-mini)
   // ============================================================================
-  if (useAI && typeof window === 'undefined') { // Server-side only
+  // Check if AI curation is enabled via environment variable
+  // Defaults to true if not set (backward compatible)
+  const aiCurationEnabled = process.env.ENABLE_AI_CURATION !== 'false';
+  
+  if (useAI && aiCurationEnabled && typeof window === 'undefined') { // Server-side only
     try {
       const { smartCurateImage } = await import('./openai');
       
@@ -330,79 +338,119 @@ export async function getArticleImage(
         console.warn('⚠️  AI curation failed, falling back to keyword matching:', error);
       }
     }
+  } else if (!aiCurationEnabled && process.env.NODE_ENV !== 'production') {
+    // Log when AI curation is explicitly disabled
+    console.log(`[AI Curation DISABLED] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> Using keyword matching fallback`);
+  }
+  
+  // ============================================================================
+  // TIER 1.5: BRAND-AWARE EXPLICIT MATCH (Zero-Cost, Deterministic)
+  // ============================================================================
+  // Brand images are used ONLY when brand name appears explicitly in title
+  // No fuzzy matching, no inference, no OpenAI calls
+  // Runs after GPT (if enabled) but before keyword matching
+  const brandMatches = findBrandMatches(title, imageLibrary);
+  
+  if (brandMatches.length > 0) {
+    // Filter out already-used brand images for visual diversity
+    const availableBrandMatches = brandMatches.filter(img => !usedImagesSet.has(img));
+    const matchesToConsider = availableBrandMatches.length > 0 ? availableBrandMatches : brandMatches;
+    
+    const selectedBrandImage = selectBrandImage(title, matchesToConsider, simpleHash);
+    
+    if (selectedBrandImage) {
+      // Extract brand name for logging
+      const brandName = selectedBrandImage.split(/[-_]/)[0];
+      
+      console.log(`[Brand Match] "${brandName}" → ${selectedBrandImage} (Title: "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}")`);
+      
+      usedImagesSet.add(selectedBrandImage);
+      return `/assets/images/all/${selectedBrandImage}`;
+    }
   }
   
   // ============================================================================
   // TIER 2: WEIGHTED KEYWORD MATCHING (Fallback)
   // ============================================================================
   
+  // Filter to only subject images (exclude generic and category-prefixed images)
+  const subjectImages = filterSubjectImages(imageLibrary);
+  
   // Extract keywords from title (removes stop words automatically)
   const titleKeywords = extractKeywords(title);
   
-  // If no keywords, skip to hash random
-  if (titleKeywords.length === 0) {
-    // Use hash-based selection for consistency
-    const titleHash = simpleHash(title);
-    const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-    const fallbackImage = imageLibrary[fallbackIndex];
+  // If no keywords or no subject images, skip to Tier 3
+  if (titleKeywords.length > 0 && subjectImages.length > 0) {
+    // Score only subject images with visual diversity penalty
+    const scoredImages = subjectImages.map(imageFilename => ({
+      filename: imageFilename,
+      score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
+    }));
+  
+    // Sort by score (highest first)
+    scoredImages.sort((a, b) => b.score - a.score);
     
+    // Get best match
+    const bestMatch = scoredImages[0];
+    
+    // PERSISTENCE: Use hash of title to pick from top matches consistently
+    // This ensures the same article always gets the same image
+    const titleHash = simpleHash(title);
+    const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
+    const persistentIndex = Math.floor(titleHash * topMatches.length);
+    const selectedImage = topMatches[persistentIndex] || bestMatch;
+    
+    // Keyword Match Console Logging (development only)
     if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${fallbackImage} (No keywords)`);
+      const truncatedTitle = title.length > 50 ? title.substring(0, 50) + '...' : title;
+      const confidence = selectedImage.score > 3 ? 'High' : selectedImage.score > 0 ? 'Medium' : 'Low';
+      console.log(`[Keyword Match] "${truncatedTitle}" -> ${selectedImage.filename} (Score: ${selectedImage.score.toFixed(1)}, Confidence: ${confidence})`);
     }
     
-    usedImagesSet.add(fallbackImage);
-    return `/assets/images/all/${fallbackImage}`;
+    // Add to used set
+    usedImagesSet.add(selectedImage.filename);
+    
+    // If best match has positive score, use it
+    if (selectedImage.score > 0) {
+      return `/assets/images/all/${selectedImage.filename}`;
+    }
   }
   
-  // Score all images with visual diversity penalty
-  const scoredImages = imageLibrary.map(imageFilename => ({
-    filename: imageFilename,
-    score: scoreImageMatch(titleKeywords, category, imageFilename, usedImagesSet),
-  }));
+  // ============================================================================
+  // TIER 3: GENERIC IMAGE FALLBACK (Mandatory Owned Image - 100% COVERAGE GUARANTEE)
+  // ============================================================================
   
-  // Sort by score (highest first)
-  scoredImages.sort((a, b) => b.score - a.score);
+  // No matches found - use ONLY images with *-generic-* prefix
+  const genericImages = filterGenericImages(imageLibrary);
   
-  // Get best match
-  const bestMatch = scoredImages[0];
+  if (genericImages.length === 0) {
+    // Safety fallback: if no generic images exist, use hardcoded registry
+    const genericImage = getGenericImageForArticle(title, category, simpleHash);
+    console.warn('[Image Fallback Triggered]', title);
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Generic Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${genericImage} (Category: ${category}, Using registry)`);
+    }
+    
+    usedImagesSet.add(genericImage);
+    return `/assets/images/all/${genericImage}`;
+  }
   
-  // PERSISTENCE: Use hash of title to pick from top matches consistently
-  // This ensures the same article always gets the same image
+  // Use hash-based selection from generic images only
   const titleHash = simpleHash(title);
-  const topMatches = scoredImages.filter(img => img.score === bestMatch.score);
-  const persistentIndex = Math.floor(titleHash * topMatches.length);
-  const selectedImage = topMatches[persistentIndex] || bestMatch;
+  const genericIndex = Math.floor(titleHash * genericImages.length);
+  const genericImage = genericImages[genericIndex];
   
-  // Keyword Match Console Logging (development only)
-  if (process.env.NODE_ENV !== 'production') {
-    const truncatedTitle = title.length > 50 ? title.substring(0, 50) + '...' : title;
-    const confidence = selectedImage.score > 3 ? 'High' : selectedImage.score > 0 ? 'Medium' : 'Low';
-    console.log(`[Keyword Match] "${truncatedTitle}" -> ${selectedImage.filename} (Score: ${selectedImage.score.toFixed(1)}, Confidence: ${confidence})`);
-  }
-  
-  // Add to used set
-  usedImagesSet.add(selectedImage.filename);
-  
-  // If best match has positive score, use it
-  if (selectedImage.score > 0) {
-    return `/assets/images/all/${selectedImage.filename}`;
-  }
-  
-  // ============================================================================
-  // TIER 3: HASH-BASED RANDOM (Final Fallback - 100% COVERAGE GUARANTEE)
-  // ============================================================================
-  
-  // No matches found (all scores ≤ 0) - use hash to pick consistent fallback
-  const fallbackIndex = Math.floor(titleHash * imageLibrary.length);
-  const fallbackImage = imageLibrary[fallbackIndex];
+  // Temporary dev-only debug log to identify when fallback is triggered
+  console.warn('[Image Fallback Triggered]', title);
   
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${fallbackImage} (Random, Confidence: Low)`);
+    console.log(`[Generic Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${genericImage} (Category: ${category})`);
   }
   
-  usedImagesSet.add(fallbackImage);
+  usedImagesSet.add(genericImage);
   
-  return `/assets/images/all/${fallbackImage}`;
+  return `/assets/images/all/${genericImage}`;
 }
 
 /**
@@ -515,7 +563,9 @@ export async function getArticleImageWithScore(
   }
   
   // Try AI first if enabled and server-side
-  if (useAI && typeof window === 'undefined') {
+  const aiCurationEnabled = process.env.ENABLE_AI_CURATION !== 'false';
+  
+  if (useAI && aiCurationEnabled && typeof window === 'undefined') {
     try {
       const { smartCurateImage } = await import('./openai');
       

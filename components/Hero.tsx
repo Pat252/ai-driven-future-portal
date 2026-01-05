@@ -27,7 +27,11 @@ const fallbackBigStory: NewsItem = {
 // TrendingItem component with local-only strategy
 function TrendingItem({ item }: { item: NewsItem; index: number; isLast: boolean }) {
   const defaultFallback = getDefaultPlaceholder();
-  const [imgSrc, setImgSrc] = useState(item.image || defaultFallback);
+  // Final UI fallback: Validate image path before use
+  const safeImagePath = item.image && item.image.startsWith('/assets/')
+    ? item.image
+    : '/assets/images/all/ai-robot-future-technology.jpg.svg';
+  const [imgSrc, setImgSrc] = useState(safeImagePath);
   
   // Simple fallback: Local image → Default placeholder
   const handleImageError = () => {
@@ -77,7 +81,11 @@ export default function Hero({ bigStory, trending }: HeroProps) {
   
   // Hero image with local-only strategy
   const defaultFallback = getDefaultPlaceholder();
-  const [heroImgSrc, setHeroImgSrc] = useState(story.image || defaultFallback);
+  // Final UI fallback: Validate image path before use
+  const safeHeroImagePath = story.image && story.image.startsWith('/assets/')
+    ? story.image
+    : '/assets/images/all/ai-robot-future-technology.jpg.svg';
+  const [heroImgSrc, setHeroImgSrc] = useState(safeHeroImagePath);
   
   // Simple fallback: Local image → Default placeholder
   const handleHeroImageError = () => {
