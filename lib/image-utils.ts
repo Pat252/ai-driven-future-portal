@@ -419,6 +419,12 @@ export async function getArticleImage(
   // ============================================================================
   // TIER 3: GENERIC IMAGE FALLBACK (Mandatory Owned Image - 100% COVERAGE GUARANTEE)
   // ============================================================================
+  // 
+  // DEFENSE-IN-DEPTH HOTFIX (Option C):
+  // - Filters out brand-* filenames BEFORE selection
+  // - Ensures brand images never leak via fallback
+  // - Works without CSV metadata (filename-based only)
+  // ============================================================================
   
   // No matches found - use ONLY images with *-generic-* prefix
   const genericImages = filterGenericImages(imageLibrary);
@@ -436,17 +442,40 @@ export async function getArticleImage(
     return `/assets/images/all/${genericImage}`;
   }
   
-  // Use hash-based selection from generic images only
-  const titleHash = simpleHash(title);
-  const genericIndex = Math.floor(titleHash * genericImages.length);
-  const genericImage = genericImages[genericIndex];
+  // ============================================================================
+  // DEFENSE-IN-DEPTH: Filter out brand-* filenames (CRITICAL SAFETY)
+  // ============================================================================
+  // Even if an image passes generic filter, block if filename starts with "brand-"
+  // This prevents brand leakage even if image naming is inconsistent
+  const brandSafeImages = genericImages.filter(
+    img => !img.toLowerCase().startsWith("brand-")
+  );
   
-  // Temporary dev-only debug log to identify when fallback is triggered
+  if (brandSafeImages.length === 0) {
+    console.error(
+      `[Generic Fallback] No brand-safe images available — all generic images have brand- prefix (check image inventory)`
+    );
+    // Fall back to hardcoded registry as last resort
+    const genericImage = getGenericImageForArticle(title, category, simpleHash);
+    console.log(`[Generic Fallback] Using hardcoded registry fallback: ${genericImage}`);
+    usedImagesSet.add(genericImage);
+    return `/assets/images/all/${genericImage}`;
+  }
+  
+  // Use hash-based selection from brand-safe generic images only
+  const titleHash = simpleHash(title);
+  const genericIndex = Math.floor(titleHash * brandSafeImages.length);
+  const genericImage = brandSafeImages[genericIndex];
+  
+  // Log fallback trigger with brand-safe confirmation
   console.warn('[Image Fallback Triggered]', title);
   
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[Generic Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${genericImage} (Category: ${category})`);
+    console.log(`[Generic Fallback] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${genericImage} (Category: ${category}, Brand-Safe)`);
   }
+  
+  // Production log for auditability
+  console.log(`[Generic Fallback] Selected brand-safe image: ${genericImage} (from ${brandSafeImages.length} candidates)`);
   
   usedImagesSet.add(genericImage);
   
