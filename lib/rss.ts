@@ -1,8 +1,7 @@
 import Parser from 'rss-parser';
 import { formatDistanceToNow } from 'date-fns';
 import { NewsItem } from '@/components/NewsCard';
-import { getArticleImage, ImageSelectionContext, ImageDecision, isLikelyBrandArticle } from './image-utils';
-import { getCachedImage, setCachedImage } from './image-cache';
+import { getArticleImage, ImageSelectionContext, ImageDecision, getImageLibrary } from './image-utils';
 
 // Custom parser with extended fields
 const parser = new Parser({
@@ -83,24 +82,17 @@ const FEED_URLS = [
 ];
 
 // ============================================================================
-// IMAGE SELECTION WITH CONTEXT (Per-Request Deduplication)
+// IMAGE SELECTION (SIMPLIFIED - NO CACHE)
 // ============================================================================
 
 /**
- * Get image path with caching, context, and brand safety
+ * Get image path using simplified scoring system
  * 
- * NEW: Uses ImageDecision contract and per-request context
- * 
- * Flow:
- * 1. Classify article (generic vs brand)
- * 2. Check cache with brand safety validation
- * 3. If miss, call getArticleImage() with context
- * 4. Cache the decision
- * 5. Register filename in context
- * 6. Return image path
+ * NO PERSISTENT CACHE - only per-request context tracking
  * 
  * @param title - Article title
  * @param description - Article description
+ * @param category - Article category
  * @param imageLibrary - Array of available image filenames
  * @param imageCtx - Per-request context for deduplication
  * @returns Promise<Image path>
@@ -108,53 +100,18 @@ const FEED_URLS = [
 async function extractImage(
   title: string,
   description: string,
+  category: string,
   imageLibrary: string[],
   imageCtx: ImageSelectionContext
 ): Promise<string> {
-  // ============================================================================
-  // LEGAL & COMPLIANT - 100% LOCAL-ONLY STRATEGY
-  // ============================================================================
-  // ALL external image sources are COMPLETELY IGNORED:
-  // ❌ item.enclosure - IGNORED (publisher copyright risk)
-  // ❌ item.mediaContent - IGNORED (publisher copyright risk)
-  // ❌ item.mediaThumbnail - IGNORED (publisher copyright risk)
-  // ❌ HTML content images - IGNORED (publisher copyright risk)
-  // ❌ Unsplash API - REMOVED (external dependency)
-  // ❌ ANY external URLs - BLOCKED
-  // 
-  // ✅ ONLY local files in /public/assets/images/all/
-  // ✅ AI-powered curation with GPT-4o-mini (~$0.01 per 1,000 articles)
-  // ✅ Brand safety enforced at all tiers
-  // ✅ Deterministic decision contract (ImageDecision)
-  // ============================================================================
-  
-  // Classify article
-  const isGeneric = !isLikelyBrandArticle(title, description);
-  
-  // Check persistent cache first with validation
-  const cachedDecision = await getCachedImage(title, isGeneric);
-  
-  if (cachedDecision) {
-    // Cache hit! Register in context and return
-    imageCtx.usedFilenames.add(cachedDecision.filename);
-    
-    console.log(`[Image Cache HIT] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> ${cachedDecision.filename} (tier: ${cachedDecision.tier})`);
-    
-    return cachedDecision.image;
-  }
-  
-  // Cache miss - need to select image
-  console.log(`[Image Cache MISS] "${title.substring(0, 50)}${title.length > 50 ? '...' : ''}" -> Selecting image`);
-  
-  const decision: ImageDecision = await getArticleImage(title, description, imageLibrary, { context: imageCtx });
-  
-  // Log decision
-  console.log(`[ImageDecision v${decision.policyVersion}] tier=${decision.tier} file=${decision.filename} used=${imageCtx.usedFilenames.size} reason=${decision.reason}`);
-  
-  // Cache the decision (not just the filename)
-  await setCachedImage(title, decision);
-  
-  // Note: filename already registered in context by finalizeDecision()
+  // Select image using simplified scoring system
+  const decision: ImageDecision = await getArticleImage(
+    title, 
+    description, 
+    category,
+    imageLibrary, 
+    imageCtx
+  );
   
   return decision.image;
 }
@@ -279,7 +236,7 @@ function extractAuthor(item: any, source: string): string {
 
 /**
  * Fetch and parse a single RSS feed with robust error handling
- * UPDATED: Now uses ImageDecision contract and per-request context
+ * UPDATED: Uses simplified image selection with NO persistent cache
  */
 async function fetchFeed(
   feedConfig: typeof FEED_URLS[0], 
@@ -309,8 +266,14 @@ async function fetchFeed(
       const pubDateString = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
       const pubDate = parseRSSDate(pubDateString);
       
-      // Smart Image Selection with context (deduplication + brand safety)
-      const selectedImage = await extractImage(articleTitle, articleDescription, imageLibrary, imageCtx);
+      // Smart Image Selection with simplified scoring system
+      const selectedImage = await extractImage(
+        articleTitle, 
+        articleDescription, 
+        category,
+        imageLibrary, 
+        imageCtx
+      );
       
       items.push({
         title: articleTitle,
@@ -337,27 +300,19 @@ async function fetchFeed(
 
 /**
  * Get all news data from RSS feeds with diversity and resilience
- * UPDATED: Creates per-request context for image deduplication
+ * UPDATED: Creates per-request context for image deduplication (NO persistent cache)
  */
 export async function getNewsData(limit?: number): Promise<NewsItem[]> {
   try {
     console.log('Starting RSS feed fetch...');
     
-    // Create per-request context for image deduplication
+    // Create per-request context for image deduplication (in-memory only)
     const imageCtx: ImageSelectionContext = {
       usedFilenames: new Set(),
     };
     
-    // Get image library once (will be cached)
-    const fs = require('fs');
-    const path = require('path');
-    const imagesDir = path.join(process.cwd(), 'public', 'assets', 'images', 'all');
-    const imageLibrary: string[] = fs.readdirSync(imagesDir)
-      .filter((file: string) => {
-        const ext = path.extname(file).toLowerCase();
-        return ['.jpg', '.jpeg', '.png', '.webp', '.svg', '.gif'].includes(ext);
-      })
-      .sort();
+    // Get image library once (will be cached in memory for this request)
+    const imageLibrary = getImageLibrary();
     
     console.log(`✅ Loaded ${imageLibrary.length} images for selection`);
     

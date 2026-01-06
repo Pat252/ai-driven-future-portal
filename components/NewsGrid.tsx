@@ -2,28 +2,28 @@
 
 import { useState } from 'react';
 import NewsCard, { NewsItem } from './NewsCard';
-import { getCategoryPlaceholder } from '@/lib/image-constants';
 
 interface NewsGridProps {
   newsItems?: NewsItem[];
 }
 
 // ============================================================================
-// LOCAL-FIRST FALLBACK DATA
+// FALLBACK DATA (Simple default image)
 // ============================================================================
-// Uses LOCAL images only via getLocalImageForArticle()
-// Zero external dependencies, 100% owned assets
-// Last Updated: 2026-01-04
+// If RSS feeds fail, show this dummy data with a single default image
+// Last Updated: 2026-01-06
 // ============================================================================
 
-// Fallback dummy data with local images
+const DEFAULT_FALLBACK_IMAGE = '/assets/images/all/ai-robot-future-technology.jpg';
+
+// Fallback dummy data with default image
 const fallbackNewsItems: NewsItem[] = [
     {
       title: 'Anthropic Claude 4 Outperforms Human Experts in Medical Diagnosis',
       description: 'Latest benchmarks show Claude 4 achieving 98% accuracy in complex medical case analysis.',
       category: 'Breaking AI',
       categoryColor: 'bg-red-500',
-      image: getCategoryPlaceholder('Breaking AI'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '5 min',
       author: 'Sarah Chen',
       link: '#',
@@ -35,7 +35,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'The first fully AI-generated feature film breaks records worldwide.',
       category: 'Creative Tech',
       categoryColor: 'bg-purple-500',
-      image: getCategoryPlaceholder('Creative Tech'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '6 min',
       author: 'Marcus Webb',
       link: '#',
@@ -47,7 +47,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'Humanoid robots are revolutionizing logistics and manufacturing sectors.',
       category: 'AI Economy',
       categoryColor: 'bg-green-500',
-      image: getCategoryPlaceholder('AI Economy'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '7 min',
       author: 'Alex Kumar',
       link: '#',
@@ -59,7 +59,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'Personalized learning powered by AI is transforming education outcomes.',
       category: 'Future Life',
       categoryColor: 'bg-blue-500',
-      image: getCategoryPlaceholder('Future Life'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '4 min',
       author: 'Emma Liu',
       link: '#',
@@ -71,7 +71,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'New version brings 10x performance improvements and easier integration.',
       category: 'Toolbox',
       categoryColor: 'bg-orange-500',
-      image: getCategoryPlaceholder('Toolbox'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '8 min',
       author: 'Dev Singh',
       link: '#',
@@ -83,7 +83,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'Developer productivity skyrockets with AI pair programming assistance.',
       category: 'Toolbox',
       categoryColor: 'bg-orange-500',
-      image: getCategoryPlaceholder('Toolbox'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '5 min',
       author: 'Ryan Park',
       link: '#',
@@ -95,7 +95,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'Machine learning models identify compounds that defeated drug-resistant bacteria.',
       category: 'Breaking AI',
       categoryColor: 'bg-red-500',
-      image: getCategoryPlaceholder('Breaking AI'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '6 min',
       author: 'Dr. Lisa Wang',
       link: '#',
@@ -107,7 +107,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'Latest AI video generator produces 4K content indistinguishable from reality.',
       category: 'Creative Tech',
       categoryColor: 'bg-purple-500',
-      image: getCategoryPlaceholder('Creative Tech'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '5 min',
       author: 'Jordan Blake',
       link: '#',
@@ -119,7 +119,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'Neural networks optimize every aspect of home energy consumption.',
       category: 'Future Life',
       categoryColor: 'bg-blue-500',
-      image: getCategoryPlaceholder('Future Life'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '4 min',
       author: 'Nina Patel',
       link: '#',
@@ -131,7 +131,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'New report forecasts massive economic transformation driven by AI.',
       category: 'AI Economy',
       categoryColor: 'bg-green-500',
-      image: getCategoryPlaceholder('AI Economy'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '7 min',
       author: 'Michael Torres',
       link: '#',
@@ -143,7 +143,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'AI-first code editor disrupts development tools market.',
       category: 'Toolbox',
       categoryColor: 'bg-orange-500',
-      image: getCategoryPlaceholder('Toolbox'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '6 min',
       author: 'Chris Anderson',
       link: '#',
@@ -155,7 +155,7 @@ const fallbackNewsItems: NewsItem[] = [
       description: 'Brain-computer interface achieves remarkable milestone in human trials.',
       category: 'Breaking AI',
       categoryColor: 'bg-red-500',
-      image: getCategoryPlaceholder('Breaking AI'),
+      image: DEFAULT_FALLBACK_IMAGE,
       readTime: '8 min',
       author: 'Dr. James Wilson',
       link: '#',
