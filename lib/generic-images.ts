@@ -173,3 +173,4 @@ export function getGenericImageForArticle(
   return genericImages[index];
 }
 
+

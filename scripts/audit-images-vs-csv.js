@@ -267,3 +267,4 @@ if (report.health_status === 'CRITICAL') {
   process.exit(0);
 }
 
+

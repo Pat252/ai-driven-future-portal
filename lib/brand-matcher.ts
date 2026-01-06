@@ -149,3 +149,4 @@ export function selectBrandImage(
   return brandMatches[index];
 }
 
+
