@@ -5,7 +5,7 @@
  * Uses AWS SDK v3 with R2-specific configuration.
  */
 
-import { S3Client, ListObjectsV2Command, PutObjectCommand, type ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, type ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
 
 /**
  * Create S3Client configured for Cloudflare R2
@@ -77,39 +77,9 @@ export async function listAllR2Objects(bucketName: string): Promise<string[]> {
 }
 
 /**
- * Upload data to R2 bucket
+ * REMOVED: uploadToR2()
  * 
- * @param bucketName - R2 bucket name
- * @param key - Object key (path) in bucket
- * @param data - Data to upload (will be JSON stringified)
- * @param contentType - Content type (default: application/json)
+ * R2 is for IMAGES ONLY, not for application data.
+ * Articles are stored in Vercel KV instead.
  */
-export async function uploadToR2(
-  bucketName: string,
-  key: string,
-  data: any,
-  contentType: string = 'application/json'
-): Promise<void> {
-  const client = createR2Client();
-  
-  try {
-    const body = typeof data === 'string' ? data : JSON.stringify(data);
-    
-    const command = new PutObjectCommand({
-      Bucket: bucketName,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-    });
-    
-    await client.send(command);
-    console.log(`✅ Uploaded to R2: ${bucketName}/${key}`);
-  } catch (error) {
-    throw new Error(
-      `CRITICAL: Failed to upload to R2 bucket "${bucketName}" at key "${key}".\n` +
-      `Error: ${error instanceof Error ? error.message : String(error)}\n` +
-      `Check your R2 credentials and permissions.`
-    );
-  }
-}
 

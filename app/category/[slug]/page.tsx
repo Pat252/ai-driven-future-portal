@@ -6,8 +6,8 @@ import { getCachedNewsData } from '@/lib/cache';
 import { getIngestionStatus } from '@/lib/ingestion-status';
 import type { Metadata } from 'next';
 
-// Revalidate every hour (3600 seconds) - ISR
-export const revalidate = 3600;
+// Force dynamic rendering (no static generation, no ISR)
+export const dynamic = 'force-dynamic';
 
 // Map URL slugs to category names
 const slugToCategory: Record<string, string> = {

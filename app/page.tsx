@@ -5,8 +5,8 @@ import NewsGrid from '@/components/NewsGrid';
 import { getCachedNewsData } from '@/lib/cache';
 import { getIngestionStatus } from '@/lib/ingestion-status';
 
-// Revalidate every hour (3600 seconds) - ISR
-export const revalidate = 3600;
+// Force dynamic rendering (no static generation, no ISR)
+export const dynamic = 'force-dynamic';
 
 /**
  * ⚠️  CRITICAL: This page ONLY renders precomputed data.
