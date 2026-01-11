@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 // ============================================================================
-// 3-TIER FALLBACK CONFIGURATION
+// PRODUCTION IMAGE CONFIGURATION
 // ============================================================================
-// POLICY: Unsplash (Tier 2) + Local Assets (Tier 3)
-// SECURITY: Explicit allowlist for Unsplash + our domain
-// COPYRIGHT: Unsplash License (royalty-free) + owned local assets
+// POLICY: Cloudflare R2 (Primary) + Local Assets (Fallback) + Unsplash
+// SECURITY: Explicit allowlist for CDN domains
+// COPYRIGHT: R2 owned assets + Unsplash License + local assets
 // ============================================================================
 
 const nextConfig: NextConfig = {
@@ -15,24 +15,51 @@ const nextConfig: NextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     
+    // Allowed quality values (supports both 75 and 85)
+    // Next.js default is 75, but components may use 85 for hero images
+    unoptimized: false, // Keep optimization enabled
+    
     remotePatterns: [
       // ===================================================================
-      // UNSPLASH DOMAINS (Tier 2 - Royalty-Free Images)
+      // CLOUDFLARE R2 - CUSTOM DOMAIN (Primary CDN)
       // ===================================================================
       {
         protocol: "https",
-        hostname: "images.unsplash.com", // Main Unsplash CDN
-      },
-      {
-        protocol: "https",
-        hostname: "source.unsplash.com", // Unsplash Source API
-      },
-      {
-        protocol: "https",
-        hostname: "plus.unsplash.com", // Unsplash Plus
+        hostname: "images.aidrivenfuture.ca",
+        pathname: "/**",
       },
       // ===================================================================
-      // OUR OWN DOMAIN (Tier 3 - Local Assets)
+      // CLOUDFLARE R2 - PUBLIC DEVELOPMENT URL (Fallback)
+      // ===================================================================
+      {
+        protocol: "https",
+        hostname: "pub-43b5ac55153d4616afc57dd42dde1a8a.r2.dev",
+        pathname: "/**",
+      },
+      // ===================================================================
+      // CLOUDFLARE R2 - WILDCARD (For future subdomains)
+      // ===================================================================
+      {
+        protocol: "https",
+        hostname: "*.r2.dev",
+      },
+      // ===================================================================
+      // UNSPLASH DOMAINS (Legacy support)
+      // ===================================================================
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "source.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "plus.unsplash.com",
+      },
+      // ===================================================================
+      // OUR OWN DOMAIN (For self-hosted assets)
       // ===================================================================
       {
         protocol: "https",
@@ -42,21 +69,16 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "aidrivenfuture.ca",
       },
-      // ===================================================================
-      // FALLBACK CHAIN:
-      // 1. Unsplash URL (from RSS parser)
-      // 2. Local placeholder (on Unsplash error)
-      // 3. Ultimate fallback (if local fails)
-      // ===================================================================
     ],
+    
     // Performance optimizations
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    
+    // Cache optimization
+    minimumCacheTTL: 60,
   },
 };
 
 export default nextConfig;
-
-
-

@@ -3,41 +3,29 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { NewsItem } from './NewsCard';
-import { getDefaultPlaceholder } from '@/lib/image-utils';
 
 interface HeroProps {
   bigStory: NewsItem | null;
   trending: NewsItem[];
 }
 
-// Fallback data with Unsplash image
-const fallbackBigStory: NewsItem = {
-  title: 'OpenAI Unveils GPT-5: The Dawn of True AGI',
-  description: 'In a surprise announcement, OpenAI revealed GPT-5 with breakthrough reasoning capabilities that surpass human-level performance across multiple domains.',
-  category: 'Breaking AI',
-  categoryColor: 'bg-red-500',
-  image: '/assets/images/categories/breaking-ai/main.jpg.svg',
-  readTime: '8 min',
-  author: 'Editorial Team',
-  link: '#',
-  source: 'Editorial Team',
-  pubDate: new Date(),
-};
-
-// TrendingItem component with local-only strategy
+// TrendingItem component
 function TrendingItem({ item }: { item: NewsItem; index: number; isLast: boolean }) {
-  const defaultFallback = getDefaultPlaceholder();
-  // Final UI fallback: Validate image path before use
-  const safeImagePath = item.image && item.image.startsWith('/assets/')
-    ? item.image
-    : '/assets/images/all/ai-robot-future-technology.jpg.svg';
-  const [imgSrc, setImgSrc] = useState(safeImagePath);
+  // ⚠️ CRITICAL: imageUrl MUST exist - assigned during RSS ingestion
+  if (!item.image || !item.image.startsWith('http')) {
+    console.error('❌ DATA ERROR: Trending article missing imageUrl', {
+      title: item.title.substring(0, 50),
+      link: item.link,
+      image: item.image,
+    });
+    throw new Error(`Missing or invalid imageUrl for trending: "${item.title.substring(0, 50)}..."`);
+  }
   
-  // Simple fallback: Local image → Default placeholder
+  const [imgSrc, setImgSrc] = useState(item.image);
+  
   const handleImageError = () => {
-    if (imgSrc !== defaultFallback) {
-      setImgSrc(defaultFallback);
-    }
+    console.error(`❌ Image failed to load: ${imgSrc} for trending: ${item.title.substring(0, 50)}`);
+    // DO NOT use fallback - this is a critical error
   };
 
   return (
@@ -57,7 +45,7 @@ function TrendingItem({ item }: { item: NewsItem; index: number; isLast: boolean
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             onError={handleImageError}
             loading="lazy"
-            quality={85}
+            quality={75}
             unoptimized={imgSrc.endsWith('.svg')}
           />
         </div>
@@ -77,22 +65,35 @@ function TrendingItem({ item }: { item: NewsItem; index: number; isLast: boolean
 }
 
 export default function Hero({ bigStory, trending }: HeroProps) {
-  const story = bigStory || fallbackBigStory;
+  // If no big story, show nothing (homepage needs ingestion first)
+  if (!bigStory) {
+    return (
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch mb-20">
+        <div className="lg:col-span-3 h-64 flex items-center justify-center bg-gray-100 dark:bg-white/5 rounded-xl">
+          <div className="text-center">
+            <p className="text-gray-600 dark:text-gray-400 text-lg mb-2">No articles available</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm">Trigger RSS ingestion: POST /api/ingest</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
   
-  // Hero image with local-only strategy
-  const defaultFallback = getDefaultPlaceholder();
-  // Final UI fallback: Validate image path before use
-  const safeHeroImagePath = story.image && story.image.startsWith('/assets/')
-    ? story.image
-    : '/assets/images/all/ai-robot-future-technology.jpg.svg';
-  const [heroImgSrc, setHeroImgSrc] = useState(safeHeroImagePath);
+  // ⚠️ CRITICAL: imageUrl MUST exist - assigned during RSS ingestion
+  if (!bigStory.image || !bigStory.image.startsWith('http')) {
+    console.error('❌ DATA ERROR: Big story missing imageUrl', {
+      title: bigStory.title.substring(0, 50),
+      link: bigStory.link,
+      image: bigStory.image,
+    });
+    throw new Error(`Missing or invalid imageUrl for big story: "${bigStory.title.substring(0, 50)}..."`);
+  }
   
-  // Simple fallback: Local image → Default placeholder
+  const [heroImgSrc, setHeroImgSrc] = useState(bigStory.image);
+  
   const handleHeroImageError = () => {
-    if (heroImgSrc !== defaultFallback) {
-      console.log('[Hero] Image failed, using default placeholder');
-      setHeroImgSrc(defaultFallback);
-    }
+    console.error(`❌ Hero image failed to load: ${heroImgSrc} for: ${bigStory.title.substring(0, 50)}`);
+    // DO NOT use fallback - this is a critical error
   };
 
   return (
@@ -100,7 +101,7 @@ export default function Hero({ bigStory, trending }: HeroProps) {
       {/* Big Story - Left 66% */}
       <div className="lg:col-span-2 h-full">
         <a 
-          href={story.link || '#'} 
+          href={bigStory.link || '#'} 
           target="_blank" 
           rel="noopener noreferrer"
           className="relative block h-full rounded-xl overflow-hidden group cursor-pointer shadow-2xl hover:shadow-3xl transition-all"
@@ -109,12 +110,12 @@ export default function Hero({ bigStory, trending }: HeroProps) {
           <div className="absolute inset-0 z-0">
             <Image
               src={heroImgSrc}
-              alt={story.title}
+              alt={bigStory.title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-700"
               onError={handleHeroImageError}
               priority
-              quality={90}
+              quality={75}
               unoptimized={heroImgSrc.endsWith('.svg')}
             />
           </div>
@@ -124,23 +125,23 @@ export default function Hero({ bigStory, trending }: HeroProps) {
 
           {/* Glassmorphism Category Tag */}
           <div className="absolute top-4 left-4 z-20">
-            <span className={`inline-block ${story.categoryColor}/80 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-lg border border-white/20`}>
-              {story.category}
+            <span className={`inline-block ${bigStory.categoryColor}/80 backdrop-blur-md text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg shadow-lg border border-white/20`}>
+              {bigStory.category}
             </span>
           </div>
 
           {/* Text Content - Positioned at Bottom */}
           <div className="absolute bottom-0 left-0 right-0 z-20 p-6 md:p-8">
             <h1 className="text-3xl md:text-5xl font-extrabold mb-4 leading-tight text-white group-hover:text-[#0070F3] transition-colors">
-              {story.title}
+              {bigStory.title}
             </h1>
             <p className="text-gray-200 text-base md:text-lg leading-relaxed line-clamp-2 mb-4">
-              {story.description}
+              {bigStory.description}
             </p>
             <div className="flex items-center text-sm text-gray-300">
-              <span>{story.readTime}</span>
+              <span>{bigStory.readTime}</span>
               <span className="mx-2">•</span>
-              <span>{story.author}</span>
+              <span>{bigStory.author}</span>
             </div>
           </div>
         </a>

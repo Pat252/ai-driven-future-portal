@@ -7,165 +7,61 @@ interface NewsGridProps {
   newsItems?: NewsItem[];
 }
 
-// ============================================================================
-// FALLBACK DATA (Simple default image)
-// ============================================================================
-// If RSS feeds fail, show this dummy data with a single default image
-// Last Updated: 2026-01-06
-// ============================================================================
-
-const DEFAULT_FALLBACK_IMAGE = '/assets/images/all/ai-robot-future-technology.jpg';
-
-// Fallback dummy data with default image
-const fallbackNewsItems: NewsItem[] = [
-    {
-      title: 'Anthropic Claude 4 Outperforms Human Experts in Medical Diagnosis',
-      description: 'Latest benchmarks show Claude 4 achieving 98% accuracy in complex medical case analysis.',
-      category: 'Breaking AI',
-      categoryColor: 'bg-red-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '5 min',
-      author: 'Sarah Chen',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'AI-Generated Movies Hit $1B Box Office Milestone',
-      description: 'The first fully AI-generated feature film breaks records worldwide.',
-      category: 'Creative Tech',
-      categoryColor: 'bg-purple-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '6 min',
-      author: 'Marcus Webb',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'Tesla Optimus Robots Now Working in 500+ Warehouses',
-      description: 'Humanoid robots are revolutionizing logistics and manufacturing sectors.',
-      category: 'AI Economy',
-      categoryColor: 'bg-green-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '7 min',
-      author: 'Alex Kumar',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'AI Tutors Now Standard in 10,000+ Schools Globally',
-      description: 'Personalized learning powered by AI is transforming education outcomes.',
-      category: 'Future Life',
-      categoryColor: 'bg-blue-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '4 min',
-      author: 'Emma Liu',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'LangChain 2.0: The Ultimate Framework for AI Apps',
-      description: 'New version brings 10x performance improvements and easier integration.',
-      category: 'Toolbox',
-      categoryColor: 'bg-orange-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '8 min',
-      author: 'Dev Singh',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'Microsoft Copilot Now Writes 40% of Production Code',
-      description: 'Developer productivity skyrockets with AI pair programming assistance.',
-      category: 'Toolbox',
-      categoryColor: 'bg-orange-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '5 min',
-      author: 'Ryan Park',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'AI Discovers New Antibiotics That Kill Superbugs',
-      description: 'Machine learning models identify compounds that defeated drug-resistant bacteria.',
-      category: 'Breaking AI',
-      categoryColor: 'bg-red-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '6 min',
-      author: 'Dr. Lisa Wang',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'Runway Gen-4: Create Hollywood-Quality Videos from Text',
-      description: 'Latest AI video generator produces 4K content indistinguishable from reality.',
-      category: 'Creative Tech',
-      categoryColor: 'bg-purple-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '5 min',
-      author: 'Jordan Blake',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'AI-Powered Smart Homes Cut Energy Usage by 60%',
-      description: 'Neural networks optimize every aspect of home energy consumption.',
-      category: 'Future Life',
-      categoryColor: 'bg-blue-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '4 min',
-      author: 'Nina Patel',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'Goldman Sachs: AI Will Add $7 Trillion to Global GDP',
-      description: 'New report forecasts massive economic transformation driven by AI.',
-      category: 'AI Economy',
-      categoryColor: 'bg-green-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '7 min',
-      author: 'Michael Torres',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'Cursor IDE: GitHub Copilot Killer Reaches 5M Users',
-      description: 'AI-first code editor disrupts development tools market.',
-      category: 'Toolbox',
-      categoryColor: 'bg-orange-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '6 min',
-      author: 'Chris Anderson',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-    {
-      title: 'Neuralink Patient Controls Computer with 95% Accuracy',
-      description: 'Brain-computer interface achieves remarkable milestone in human trials.',
-      category: 'Breaking AI',
-      categoryColor: 'bg-red-500',
-      image: DEFAULT_FALLBACK_IMAGE,
-      readTime: '8 min',
-      author: 'Dr. James Wilson',
-      link: '#',
-      source: 'Editorial',
-      pubDate: null,
-    },
-];
-
 export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
-  const items = newsItems.length > 0 ? newsItems : fallbackNewsItems;
+  // ⚠️  If no items, show message to trigger ingestion
+  if (newsItems.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 gap-12">
+          <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-12 text-center">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-[#EDEDED]">
+              No Articles Available
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              RSS ingestion has not been triggered yet.
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-500 font-mono">
+              Trigger ingestion: <code className="bg-white dark:bg-black px-2 py-1 rounded">POST /api/ingest</code>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // ⚠️  Filter to ONLY articles with valid imageUrl
+  // If an article has no imageUrl, it's a data error
+  const validItems = newsItems.filter(item => {
+    const isValid = item.image && item.image.startsWith('http');
+    if (!isValid) {
+      console.error('❌ DATA ERROR: Article filtered due to missing imageUrl', {
+        title: item.title.substring(0, 50),
+        link: item.link,
+        image: item.image,
+      });
+    }
+    return isValid;
+  });
+  
+  if (validItems.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 gap-12">
+          <div className="bg-red-100 dark:bg-red-900/20 rounded-xl p-12 text-center border-2 border-red-500">
+            <h2 className="text-2xl font-bold mb-4 text-red-900 dark:text-red-200">
+              ❌ DATA ERROR
+            </h2>
+            <p className="text-red-700 dark:text-red-300 mb-6">
+              All articles are missing imageUrl. Ingestion failed.
+            </p>
+            <p className="text-sm text-red-600 dark:text-red-400 font-mono">
+              Check ingestion logs for errors
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -208,7 +104,7 @@ export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
     <div className="space-y-8">
       {/* News Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-12">
-        {items.slice(0, 6).map((item, index) => (
+        {validItems.slice(0, 6).map((item, index) => (
           <NewsCard key={index} news={item} />
         ))}
 
@@ -245,7 +141,7 @@ export default function NewsGrid({ newsItems = [] }: NewsGridProps) {
           )}
         </div>
 
-        {items.slice(6, 12).map((item, index) => (
+        {validItems.slice(6, 12).map((item, index) => (
           <NewsCard key={index + 6} news={item} />
         ))}
       </div>
