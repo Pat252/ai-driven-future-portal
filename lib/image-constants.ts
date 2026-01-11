@@ -1,51 +1,52 @@
 /**
- * Image Constants - SIMPLIFIED
+ * IMAGE CONSTANTS
  * 
- * Only contains essential utilities.
- * All category placeholders and fallback pools have been removed.
+ * Single source of truth for R2 folder structure validation.
  * 
- * Last Updated: 2026-01-06
+ * ⚠️  CRITICAL: These must match the ACTUAL folder structure in your R2 bucket.
+ * 
+ * To verify your R2 structure:
+ * 1. List all objects: aws s3 ls s3://your-bucket --recursive
+ * 2. Extract unique folder prefixes
+ * 3. Update R2_ALLOWED_ROOTS to match reality
+ * 4. Add any empty/problematic folders to R2_FORBIDDEN_ROOTS
  */
-
-// ============================================================================
-// DEFAULT PLACEHOLDER (UI Error Handler Only)
-// ============================================================================
 
 /**
- * Default placeholder for client-side error handling only
- * This is NOT used in server-side image selection
+ * Allowed root folders in Cloudflare R2
+ * All image paths MUST start with one of these prefixes
+ * 
+ * Based on requirement specification - verify these exist in your R2 bucket
  */
-export const DEFAULT_TECH_PLACEHOLDER = '/assets/images/all/ai-robot-future-technology.jpg';
+export const R2_ALLOWED_ROOTS = [
+  'ai/',
+  'chips/',
+  'companies/',
+  'datacenters/',
+  'economy/',
+  'generic/',
+  'infrastructure/',
+  'llm/',
+  'markets/',
+  'people/',
+  'robotics/',
+  'security/',
+  'technology/',
+];
 
 /**
- * Open Graph branded banner for social sharing
+ * Forbidden root folders (known to be empty or invalid)
+ * Paths starting with these will be filtered out
  */
-export const OG_BRAND_BANNER = '/assets/images/og-brand-banner.png.svg';
-
-// ============================================================================
-// HELPER FUNCTIONS (Minimal)
-// ============================================================================
-
-/**
- * Validate if an image URL is local
- */
-export function isLocalImage(url: string): boolean {
-  if (!url) return false;
-  
-  // ONLY allow local images (starts with /)
-  if (url.startsWith('/')) return true;
-  
-  // ONLY allow our own domain
-  if (url.includes('aidrivenfuture.ca')) return true;
-  
-  // Reject ALL external URLs
-  return false;
-}
+export const R2_FORBIDDEN_ROOTS = [
+  'charts/',
+  'fallback/',
+  'finance/',
+  'office/',
+];
 
 /**
- * Get default placeholder (for backward compatibility)
- * @deprecated Use DEFAULT_TECH_PLACEHOLDER directly
+ * Fallback folders (priority order)
+ * At least one of these folders MUST contain images for guaranteed fallback
  */
-export function getCategoryPlaceholder(category: string): string {
-  return DEFAULT_TECH_PLACEHOLDER;
-}
+export const R2_FALLBACK_FOLDERS = ['generic/', 'ai/'];

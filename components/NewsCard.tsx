@@ -2,14 +2,13 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { getDefaultPlaceholder } from '@/lib/image-utils';
 
 export interface NewsItem {
   title: string;
   description: string;
   category: string;
   categoryColor: string;
-  image: string;
+  image: string;  // REQUIRED: Must be assigned during RSS ingestion
   readTime: string;
   author: string;
   link: string;
@@ -22,30 +21,24 @@ interface NewsCardProps {
 }
 
 export default function NewsCard({ news }: NewsCardProps) {
-  // ============================================================================
-  // 100% LOCAL-ONLY STRATEGY
-  // ============================================================================
-  // - ALL images are local (from /public/assets/images/)
-  // - NO external fetching
-  // - NO Unsplash, no RSS scraping
-  // - Simple fallback: Local category image → Default placeholder
-  // ============================================================================
+  // ⚠️ CRITICAL: imageUrl MUST exist - assigned during RSS ingestion
+  // If this throws, it's a DATA ERROR - ingestion failed
+  if (!news.image || !news.image.startsWith('http')) {
+    console.error('❌ DATA ERROR: Article missing imageUrl', {
+      title: news.title.substring(0, 50),
+      link: news.link,
+      image: news.image,
+    });
+    throw new Error(`Missing or invalid imageUrl for article: "${news.title.substring(0, 50)}..."`);
+  }
   
-  // Final UI fallback: Validate image path before use
-  // Treat article.image as untrusted - ensure it's a valid /assets/ path
-  const defaultFallback = getDefaultPlaceholder();
-  const safeImagePath = news.image && news.image.startsWith('/assets/') 
-    ? news.image 
-    : '/assets/images/all/ai-robot-future-technology.jpg.svg';
-  const [imgSrc, setImgSrc] = useState(safeImagePath);
+  const [imgSrc, setImgSrc] = useState(news.image);
   const link = news.link || '#';
   
-  // Simple fallback: If local image fails, use default placeholder
   const handleImageError = () => {
-    if (imgSrc !== defaultFallback) {
-      console.log('[NewsCard] Image failed, using default placeholder');
-      setImgSrc(defaultFallback);
-    }
+    console.error(`❌ Image failed to load: ${imgSrc} for article: ${news.title.substring(0, 50)}`);
+    // DO NOT use fallback - this is a critical error
+    // Keep the broken image to make the issue visible
   };
 
   return (
@@ -63,7 +56,7 @@ export default function NewsCard({ news }: NewsCardProps) {
           className="object-cover opacity-70 group-hover:opacity-100 transition-opacity"
           onError={handleImageError}
           loading="lazy"
-          quality={85}
+          quality={75}
           unoptimized={imgSrc.endsWith('.svg')}
         />
         {/* Glassmorphism Category Tag */}
