@@ -46,41 +46,11 @@ const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 let isIngestionPhase = false;
 
 /**
- * Recursively scan directory for images
- * Returns array of paths relative to baseDir
+ * REMOVED: scanDirectoryRecursive()
  * 
- * Example: "companies/nvidia/brand-nvidia-logo.jpg"
+ * Local filesystem scanning is not compatible with Vercel serverless.
+ * All images must come from Cloudflare R2 in production.
  */
-function scanDirectoryRecursive(
-  baseDir: string,
-  currentDir: string,
-  fs: any,
-  path: any,
-  relativePath: string = ''
-): string[] {
-  const results: string[] = [];
-  const entries = fs.readdirSync(currentDir, { withFileTypes: true });
-  
-  for (const entry of entries) {
-    const fullPath = path.join(currentDir, entry.name);
-    const relPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
-    
-    if (entry.isDirectory()) {
-      // Recursively scan subdirectory
-      const subResults = scanDirectoryRecursive(baseDir, fullPath, fs, path, relPath);
-      results.push(...subResults);
-    } else if (entry.isFile()) {
-      // Check if it's an image file
-      const ext = path.extname(entry.name).toLowerCase();
-      if (IMAGE_EXTENSIONS.includes(ext)) {
-        // Store full relative path (e.g., "companies/nvidia/logo.jpg")
-        results.push(relPath);
-      }
-    }
-  }
-  
-  return results;
-}
 
 /**
  * List all images from Cloudflare R2 bucket at runtime
@@ -173,10 +143,10 @@ async function listR2Images(): Promise<string[]> {
 }
 
 /**
- * Get image library based on IMAGE_SOURCE mode
+ * Get image library from Cloudflare R2 (SERVERLESS-SAFE)
  * 
- * - R2 mode: Lists R2 objects at runtime (no static manifest)
- * - Local mode: Scans /public/assets/images/all/ recursively
+ * ⚠️  PRODUCTION: R2 mode is MANDATORY for Vercel deployment
+ * Local filesystem mode has been removed (not serverless-compatible)
  */
 async function getAllImages(): Promise<string[]> {
   // Return cached list if available
@@ -189,43 +159,20 @@ async function getAllImages(): Promise<string[]> {
     throw new Error('getAllImages() called on client-side - this should never happen');
   }
 
-  const source = (process.env.NEXT_PUBLIC_IMAGE_SOURCE as 'local' | 'r2') || 'local';
+  const source = process.env.NEXT_PUBLIC_IMAGE_SOURCE as 'local' | 'r2';
   
-  // R2 MODE: List objects from R2 bucket at runtime
-  if (source === 'r2') {
-    imageLibraryCache = await listR2Images();
-    return imageLibraryCache;
+  // ENFORCE R2 MODE: Local mode removed (not serverless-compatible)
+  if (!source || source !== 'r2') {
+    throw new Error(
+      'CRITICAL: NEXT_PUBLIC_IMAGE_SOURCE must be set to "r2" for production.\n' +
+      'Local filesystem mode is not supported in serverless environments.\n' +
+      'Set environment variable: NEXT_PUBLIC_IMAGE_SOURCE=r2'
+    );
   }
   
-  // LOCAL MODE: Scan filesystem
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    
-    const imagesDir = path.join(process.cwd(), 'public', 'assets', 'images', 'all');
-    
-    // Recursively scan all subdirectories
-    const imageFiles = scanDirectoryRecursive(imagesDir, imagesDir, fs, path);
-    
-    imageFiles.sort();
-    imageLibraryCache = imageFiles;
-    
-    console.log(`✅ Discovered ${imageFiles.length} images in /public/assets/images/all/`);
-    
-    if (imageFiles.length === 0) {
-      throw new Error('CRITICAL: No images found in local filesystem');
-    }
-    
-    if (process.env.NODE_ENV !== 'production') {
-      const samples = imageFiles.slice(0, 3);
-      console.log(`   Sample paths:`, samples);
-    }
-    
-    return imageFiles;
-  } catch (error) {
-    console.error('❌ CRITICAL ERROR: Failed to read images directory:', error);
-    throw error;
-  }
+  // R2 MODE: List objects from R2 bucket at runtime (serverless-safe)
+  imageLibraryCache = await listR2Images();
+  return imageLibraryCache;
 }
 
 /**

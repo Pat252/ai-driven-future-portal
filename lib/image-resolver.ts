@@ -72,16 +72,27 @@ export function resolveFallbackImage(
  * Get resolver configuration from environment variables
  * 
  * CLIENT-SAFE: Uses NEXT_PUBLIC_ prefix for browser access
+ * 
+ * ⚠️  PRODUCTION: R2 mode is MANDATORY for serverless deployment
  */
 export function getResolverConfigFromEnv(): ImageResolverConfig {
   // Only NEXT_PUBLIC_ env vars are available in browser
-  const source = (process.env.NEXT_PUBLIC_IMAGE_SOURCE as ImageSource) || 'local';
+  const source = process.env.NEXT_PUBLIC_IMAGE_SOURCE as ImageSource;
   const r2BaseUrl = process.env.NEXT_PUBLIC_R2_CDN_URL;
+  
+  // ENFORCE R2 MODE for production (serverless-safe)
+  if (!source || source !== 'r2') {
+    console.warn(
+      '⚠️  NEXT_PUBLIC_IMAGE_SOURCE not set to "r2" - this may cause issues in production.\n' +
+      'For serverless deployment, set: NEXT_PUBLIC_IMAGE_SOURCE=r2'
+    );
+  }
+  
   // NOTE: NEXT_PUBLIC_R2_FOLDER is intentionally NOT read
   //       Filenames already contain their full paths
   
   return {
-    source,
+    source: source || 'r2',  // Default to r2 (no local mode)
     r2BaseUrl,
   };
 }
