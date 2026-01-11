@@ -1,8 +1,9 @@
 /**
- * INGESTION LIFECYCLE STATE
+ * INGESTION LIFECYCLE STATE (IN-MEMORY, SERVERLESS-SAFE)
  * 
- * Tracks the current state of RSS ingestion using filesystem persistence.
- * This ensures state is shared across API routes and Server Components.
+ * Tracks the current state of RSS ingestion using in-memory storage.
+ * - Status persists for the lifetime of the serverless function instance
+ * - Status is lost on cold starts (expected and acceptable)
  * 
  * States:
  * - "idle": No ingestion running, no data yet
@@ -10,11 +11,6 @@
  * - "complete": Ingestion finished successfully
  * - "error": Last ingestion failed
  */
-
-import fs from 'fs';
-import path from 'path';
-
-const STATUS_FILE = path.join(process.cwd(), '.cache', 'ingestion-status.json');
 
 export type IngestionStatus = 'idle' | 'running' | 'complete' | 'error';
 
@@ -24,62 +20,38 @@ interface IngestionState {
   message?: string;
 }
 
-/**
- * Ensure cache directory exists
- */
-function ensureCacheDir(): void {
-  const cacheDir = path.dirname(STATUS_FILE);
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
-  }
-}
+// Module-level in-memory state
+let currentState: IngestionState = {
+  status: 'idle',
+  timestamp: new Date().toISOString(),
+};
 
 /**
  * Get current ingestion status
- * Returns "idle" if status file doesn't exist
+ * Returns "idle" if no status has been set
  */
 export function getIngestionStatus(): IngestionStatus {
-  try {
-    if (!fs.existsSync(STATUS_FILE)) {
-      return 'idle';
-    }
-    
-    const data = fs.readFileSync(STATUS_FILE, 'utf-8');
-    const state: IngestionState = JSON.parse(data);
-    
-    return state.status || 'idle';
-  } catch (error) {
-    console.error('❌ Failed to read ingestion status:', error);
-    return 'idle';
-  }
+  return currentState.status;
 }
 
 /**
  * Set ingestion status
- * Persists to filesystem for cross-context sharing
+ * Stores in memory for current function instance
  */
 export function setIngestionStatus(
   status: IngestionStatus,
   message?: string
 ): void {
-  try {
-    ensureCacheDir();
-    
-    const state: IngestionState = {
-      status,
-      timestamp: new Date().toISOString(),
-      message,
-    };
-    
-    fs.writeFileSync(STATUS_FILE, JSON.stringify(state, null, 2), 'utf-8');
-    console.log(`[INGESTION] Status set to: ${status}`);
-    
-    if (message) {
-      console.log(`[INGESTION] Message: ${message}`);
-    }
-  } catch (error) {
-    console.error('❌ Failed to write ingestion status:', error);
-    throw error;
+  currentState = {
+    status,
+    timestamp: new Date().toISOString(),
+    message,
+  };
+  
+  console.log(`[INGESTION] Status set to: ${status}`);
+  
+  if (message) {
+    console.log(`[INGESTION] Message: ${message}`);
   }
 }
 
@@ -87,16 +59,6 @@ export function setIngestionStatus(
  * Get full ingestion state (for debugging)
  */
 export function getIngestionState(): IngestionState | null {
-  try {
-    if (!fs.existsSync(STATUS_FILE)) {
-      return null;
-    }
-    
-    const data = fs.readFileSync(STATUS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('❌ Failed to read ingestion state:', error);
-    return null;
-  }
+  return currentState;
 }
 

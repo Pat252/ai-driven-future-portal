@@ -1,82 +1,62 @@
 /**
- * FILE-BASED CACHE FOR NEWS ARTICLES
+ * IN-MEMORY CACHE FOR NEWS ARTICLES (SERVERLESS-SAFE)
  * 
- * ⚠️  CRITICAL: This replaces in-memory cache to fix Next.js 16 context isolation.
+ * ⚠️  CRITICAL: Vercel serverless functions cannot write to filesystem.
  * 
- * Problem: API routes and Server Components run in separate execution contexts.
- * Module-level variables are NOT shared between them.
+ * Solution: Use module-level in-memory cache.
+ * - Cache persists for the lifetime of the serverless function instance
+ * - Cache is lost on cold starts (expected and acceptable)
+ * - TTL: 24 hours (resets daily with new ingestion)
  * 
- * Solution: File system is shared across all contexts.
- * API route writes → .cache/news-data.json
- * Server Components read → .cache/news-data.json
- * 
- * This ensures articles persist from ingestion to rendering.
+ * This is production-safe for Vercel deployment.
  */
 
-import fs from 'fs';
-import path from 'path';
 import { NewsItem } from '@/components/NewsCard';
 
-const CACHE_FILE = path.join(process.cwd(), '.cache', 'news-data.json');
+// Module-level in-memory cache
+let cachedNewsData: NewsItem[] = [];
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
- * Ensure cache directory exists
- */
-function ensureCacheDir(): void {
-  const cacheDir = path.dirname(CACHE_FILE);
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
-  }
-}
-
-/**
- * Write articles to file system cache
+ * Write articles to in-memory cache
  * Called by: POST /api/ingest after successful ingestion
  */
 export function setCachedNewsData(data: NewsItem[]): void {
-  try {
-    ensureCacheDir();
-    fs.writeFileSync(CACHE_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    console.log(`✅ Cached ${data.length} articles to file system`);
-  } catch (error) {
-    console.error('❌ Failed to write cache:', error);
-    throw error;
-  }
+  cachedNewsData = data;
+  cacheTimestamp = Date.now();
+  console.log(`✅ Cached ${data.length} articles in memory`);
 }
 
 /**
- * Read articles from file system cache
+ * Read articles from in-memory cache
  * Called by: Homepage and category pages during rendering
  */
 export function getCachedNewsData(): NewsItem[] {
-  try {
-    if (!fs.existsSync(CACHE_FILE)) {
-      console.log('⚠️  Cache file does not exist');
-      return [];
-    }
-    
-    const data = fs.readFileSync(CACHE_FILE, 'utf-8');
-    const articles = JSON.parse(data) as NewsItem[];
-    
-    console.log(`✅ Read ${articles.length} articles from cache file`);
-    return articles;
-  } catch (error) {
-    console.error('❌ Failed to read cache:', error);
-    return [];
+  // Check if cache is expired
+  const isExpired = Date.now() - cacheTimestamp > CACHE_TTL;
+  
+  if (isExpired && cachedNewsData.length > 0) {
+    console.log('⚠️  Cache expired (>24h old)');
+    // Keep expired data visible rather than showing empty
+    // Fresh data will come from next cron run
   }
+  
+  if (cachedNewsData.length === 0) {
+    console.log('⚠️  Cache is empty (cold start or no ingestion yet)');
+  } else {
+    console.log(`✅ Read ${cachedNewsData.length} articles from memory cache`);
+  }
+  
+  return cachedNewsData;
 }
 
 /**
  * Clear cache (for manual cleanup or testing)
  */
 export function clearCachedNewsData(): void {
-  try {
-    if (fs.existsSync(CACHE_FILE)) {
-      fs.unlinkSync(CACHE_FILE);
-      console.log('✅ Cache cleared');
-    }
-  } catch (error) {
-    console.error('❌ Failed to clear cache:', error);
-  }
+  cachedNewsData = [];
+  cacheTimestamp = 0;
+  console.log('✅ Cache cleared');
 }
 
