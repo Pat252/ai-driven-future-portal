@@ -21,9 +21,9 @@ export default async function Home() {
   const ingestionStatus = getIngestionStatus();
   console.log(`[PAGE] Ingestion status: ${ingestionStatus}`);
   
-  // RENDERING ONLY: Read precomputed articles
+  // FETCH FROM R2: Read articles from persistent R2 storage
   // No RSS fetching, no AI calls, no image selection
-  const allNewsData = getCachedNewsData();
+  const allNewsData = await getCachedNewsData();
   
   // ⚠️ CRITICAL: Filter to ONLY articles with valid imageUrl
   // If an article has no imageUrl, it's a DATA ERROR from ingestion

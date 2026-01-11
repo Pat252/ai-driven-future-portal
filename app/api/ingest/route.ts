@@ -18,6 +18,7 @@ import { NextResponse } from 'next/server';
 import { ingestRSSFeeds } from '@/lib/rss-ingestion';
 import { setCachedNewsData } from '@/lib/cache';
 import { setIngestionStatus } from '@/lib/ingestion-status';
+import { uploadToR2 } from '@/lib/r2-client';
 
 export async function POST(request: Request) {
   try {
@@ -58,10 +59,24 @@ export async function POST(request: Request) {
       }, { status: 500 });
     }
     
-    // Store in cache ONLY if validation passed
+    // PERSIST TO R2: Upload articles to Cloudflare R2 (survives serverless restarts)
+    const bucketName = process.env.R2_BUCKET_NAME;
+    if (!bucketName) {
+      throw new Error('R2_BUCKET_NAME environment variable not set');
+    }
+    
+    try {
+      await uploadToR2(bucketName, 'articles/index.json', result.articles);
+      console.log(`✅ Persisted ${result.totalArticles} articles to R2`);
+    } catch (uploadError) {
+      console.error('❌ Failed to upload articles to R2:', uploadError);
+      throw new Error(`Failed to persist articles: ${uploadError instanceof Error ? uploadError.message : 'Unknown error'}`);
+    }
+    
+    // Store in local cache as backup (may not persist across serverless instances)
     setCachedNewsData(result.articles);
     
-    // SET STATUS: Complete (after cache written successfully)
+    // SET STATUS: Complete (after R2 upload succeeded)
     setIngestionStatus('complete');
     
     return NextResponse.json({
@@ -70,6 +85,7 @@ export async function POST(request: Request) {
       articlesLoaded: result.totalArticles,
       imagesAssigned: result.imagesAssigned,
       imageCoverage: '100%',
+      r2Upload: 'success',
     });
   } catch (error) {
     console.error('❌ RSS ingestion failed:', error);

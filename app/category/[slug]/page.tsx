@@ -86,9 +86,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   const ingestionStatus = getIngestionStatus();
   console.log(`[PAGE] Ingestion status: ${ingestionStatus}`);
 
-  // ⚠️ CRITICAL: Read from cache ONLY (populated by POST /api/ingest)
+  // FETCH FROM R2: Read articles from persistent R2 storage
   // NO RSS fetching, NO AI calls, NO image selection
-  const allNews = getCachedNewsData();
+  const allNews = await getCachedNewsData();
 
   // Filter to valid articles with imageUrl
   const validNews = allNews.filter(item => {

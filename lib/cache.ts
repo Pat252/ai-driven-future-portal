@@ -1,54 +1,86 @@
 /**
- * IN-MEMORY CACHE FOR NEWS ARTICLES (SERVERLESS-SAFE)
+ * R2-BACKED CACHE FOR NEWS ARTICLES (SERVERLESS-SAFE, PERSISTENT)
  * 
- * ⚠️  CRITICAL: Vercel serverless functions cannot write to filesystem.
+ * ⚠️  CRITICAL: Vercel serverless functions lose in-memory state on cold starts.
  * 
- * Solution: Use module-level in-memory cache.
- * - Cache persists for the lifetime of the serverless function instance
- * - Cache is lost on cold starts (expected and acceptable)
- * - TTL: 24 hours (resets daily with new ingestion)
+ * Solution: Persist articles to Cloudflare R2 as articles/index.json
+ * - Articles survive serverless cold starts
+ * - Frontend fetches directly from R2 CDN
+ * - No local state dependencies
+ * - Instant availability after ingestion
  * 
- * This is production-safe for Vercel deployment.
+ * This is production-safe and solves the "empty pages after redeploy" issue.
  */
 
 import { NewsItem } from '@/components/NewsCard';
 
-// Module-level in-memory cache
+// Module-level in-memory cache (backup only, not source of truth)
 let cachedNewsData: NewsItem[] = [];
 let cacheTimestamp: number = 0;
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 /**
- * Write articles to in-memory cache
- * Called by: POST /api/ingest after successful ingestion
+ * Write articles to in-memory cache (backup)
+ * Note: Articles are also persisted to R2 by /api/ingest
  */
 export function setCachedNewsData(data: NewsItem[]): void {
   cachedNewsData = data;
   cacheTimestamp = Date.now();
-  console.log(`✅ Cached ${data.length} articles in memory`);
+  console.log(`✅ Cached ${data.length} articles in memory (backup)`);
 }
 
 /**
- * Read articles from in-memory cache
- * Called by: Homepage and category pages during rendering
+ * Fetch articles from Cloudflare R2 (PERSISTENT SOURCE OF TRUTH)
+ * 
+ * This function fetches from R2 CDN, not in-memory cache.
+ * Articles persist across serverless cold starts.
  */
-export function getCachedNewsData(): NewsItem[] {
-  // Check if cache is expired
-  const isExpired = Date.now() - cacheTimestamp > CACHE_TTL;
+export async function getCachedNewsData(): Promise<NewsItem[]> {
+  const cdnUrl = process.env.NEXT_PUBLIC_R2_CDN_URL;
   
-  if (isExpired && cachedNewsData.length > 0) {
-    console.log('⚠️  Cache expired (>24h old)');
-    // Keep expired data visible rather than showing empty
-    // Fresh data will come from next cron run
+  if (!cdnUrl) {
+    console.error('❌ NEXT_PUBLIC_R2_CDN_URL not set - cannot fetch articles');
+    return [];
   }
   
-  if (cachedNewsData.length === 0) {
-    console.log('⚠️  Cache is empty (cold start or no ingestion yet)');
-  } else {
-    console.log(`✅ Read ${cachedNewsData.length} articles from memory cache`);
-  }
+  const articlesUrl = `${cdnUrl}/articles/index.json`;
   
-  return cachedNewsData;
+  try {
+    console.log(`🔍 Fetching articles from R2: ${articlesUrl}`);
+    
+    const response = await fetch(articlesUrl, {
+      cache: 'no-store',  // Always fetch fresh data
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log('⚠️  Articles not found in R2 (404) - ingestion may not have run yet');
+        return [];
+      }
+      throw new Error(`R2 fetch failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const articles: NewsItem[] = await response.json();
+    console.log(`✅ Fetched ${articles.length} articles from R2`);
+    
+    // Update in-memory cache as backup
+    cachedNewsData = articles;
+    cacheTimestamp = Date.now();
+    
+    return articles;
+  } catch (error) {
+    console.error('❌ Failed to fetch articles from R2:', error);
+    
+    // Fallback to in-memory cache if R2 fetch fails
+    if (cachedNewsData.length > 0) {
+      console.log(`⚠️  Using stale in-memory cache (${cachedNewsData.length} articles)`);
+      return cachedNewsData;
+    }
+    
+    return [];
+  }
 }
 
 /**
