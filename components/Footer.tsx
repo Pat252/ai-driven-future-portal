@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Linkedin } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -11,12 +12,23 @@ export default function Footer() {
               Curated for news reporting purposes under Section 29.2 of the Canadian Copyright Act and Section 107 of the U.S. Copyright Act.
             </p>
           </div>
-          <Link 
-            href="/privacy" 
-            className="hover:text-blue-400 underline transition-colors"
-          >
-            Privacy & Terms
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/privacy" 
+              className="hover:text-blue-400 underline transition-colors"
+            >
+              Privacy & Terms
+            </Link>
+            <a
+              href="https://www.linkedin.com/company/110440119/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Follow AI Driven Future on LinkedIn"
+              className="w-10 h-10 rounded-full bg-white/5 border border-gray-800 flex items-center justify-center hover:bg-white/10 hover:border-[#0070F3]/50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0070F3] focus:ring-offset-2 focus:ring-offset-gray-900"
+            >
+              <Linkedin className="w-5 h-5 text-gray-400 hover:text-[#0070F3] transition-colors" />
+            </a>
+          </div>
         </div>
       </div>
     </footer>
