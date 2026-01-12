@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { Linkedin } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 
 export default function Header() {
@@ -56,6 +57,15 @@ export default function Header() {
 
           {/* Theme Toggle */}
           <div className="flex items-center gap-4">
+            <a
+              href="https://www.linkedin.com/company/110440119/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Follow AI Driven Future on LinkedIn"
+              className="hidden md:flex w-10 h-10 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 items-center justify-center hover:bg-gray-200 dark:hover:bg-white/10 hover:border-[#0070F3]/50 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0070F3] focus:ring-offset-2 group"
+            >
+              <Linkedin className="w-5 h-5 text-gray-700 dark:text-gray-300 group-hover:text-[#0070F3] dark:group-hover:text-[#0070F3] transition-colors" />
+            </a>
             <ThemeToggle />
           </div>
       </div>
