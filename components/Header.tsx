@@ -29,8 +29,8 @@ export default function Header() {
             <Image
               src="/Aidrivenfuture-logo.png"
               alt="AI Driven Future Logo"
-              width={40}
-              height={40}
+              width={48}
+              height={48}
               className="rounded-full"
             />
             <span className="text-xl font-bold tracking-tight text-gray-900 dark:text-[#EDEDED]">
