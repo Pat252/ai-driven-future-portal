@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { NewsItem } from './NewsCard';
+import { NewsItem, formatArticleTime } from './NewsCard';
 
 interface HeroProps {
   bigStory: NewsItem | null;
@@ -139,7 +139,7 @@ export default function Hero({ bigStory, trending }: HeroProps) {
               {bigStory.description}
             </p>
             <div className="flex items-center text-sm text-gray-300">
-              <span>{bigStory.readTime}</span>
+              <span>{formatArticleTime(bigStory.pubDate)}</span>
               <span className="mx-2">•</span>
               <span>{bigStory.author}</span>
             </div>

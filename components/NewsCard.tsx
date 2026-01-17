@@ -16,6 +16,50 @@ export interface NewsItem {
   pubDate: Date | null; // Actual publication date for sorting
 }
 
+/**
+ * Format article timestamp using hybrid display logic:
+ * - If < 24 hours ago: "X hours ago"
+ * - If ≥ 24 hours ago: "Jan 16, 2026"
+ * 
+ * Uses article's pubDate (NOT ingestion time).
+ * Timezone-safe, deterministic, accurate.
+ */
+export function formatArticleTime(pubDate: Date | null | string): string {
+  // Handle null/undefined
+  if (!pubDate) return 'Recently';
+  
+  // Convert to Date if string (from JSON deserialization)
+  const date = typeof pubDate === 'string' ? new Date(pubDate) : pubDate;
+  
+  // Validate date
+  if (!(date instanceof Date) || isNaN(date.getTime())) {
+    return 'Recently';
+  }
+  
+  // Calculate hours since publication (no libraries, pure math)
+  const now = Date.now();
+  const publishedMs = date.getTime();
+  const ageMs = now - publishedMs;
+  const ageHours = Math.floor(ageMs / (1000 * 60 * 60)); // milliseconds → hours
+  
+  // Guard against future dates or negative values
+  if (ageHours < 0) return 'Recently';
+  
+  // If less than 24 hours, show "X hours ago"
+  if (ageHours < 24) {
+    // Handle edge case: 0 hours = "Less than an hour ago"
+    if (ageHours === 0) return 'Less than an hour ago';
+    return `${ageHours} hour${ageHours === 1 ? '' : 's'} ago`;
+  }
+  
+  // If 24+ hours, show formatted date: "Jan 16, 2026"
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date);
+}
+
 interface NewsCardProps {
   news: NewsItem;
 }
@@ -77,7 +121,7 @@ export default function NewsCard({ news }: NewsCardProps) {
           <span>
             {news.author && news.author !== news.source ? `By ${news.author} | ` : ''}{news.source}
           </span>
-          <span>{news.readTime}</span>
+          <span>{formatArticleTime(news.pubDate)}</span>
         </div>
       </div>
     </a>
