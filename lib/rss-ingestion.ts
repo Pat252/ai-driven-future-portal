@@ -16,6 +16,7 @@ import {
   enableIngestionPhase,
   disableIngestionPhase,
 } from './image-utils.server';
+import { resolveArticleImage, getResolverConfigFromEnv } from './image-resolver';
 import { setIngestionStatus } from './ingestion-status';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -180,6 +181,96 @@ function extractAuthor(item: any, source: string): string {
   return source;
 }
 
+/**
+ * BRAND IMAGE GATE - Hard priority for curated brand images
+ * 
+ * Authoritative brand-to-folder mapping.
+ * If a brand name appears in the article title AND the folder contains images,
+ * we MUST select a brand image and skip AI selection.
+ * 
+ * Last Updated: 2026-01-22
+ */
+const BRAND_IMAGE_MAP: Record<string, string> = {
+  // Companies
+  tesla: "companies/tesla",
+  spacex: "companies/tesla",
+  google: "companies/google",
+  alphabet: "companies/google",
+  microsoft: "companies/microsoft",
+  nvidia: "companies/nvidia",
+  meta: "companies/meta",
+  facebook: "companies/meta",
+  apple: "companies/apple",
+  amazon: "companies/amazon",
+  netflix: "companies/netflix",
+  uber: "companies/uber",
+  samsung: "companies/samsung",
+  intel: "companies/intel",
+  amd: "companies/amd",
+  qualcomm: "companies/qualcomm",
+  // LLMs / AI Models
+  openai: "llm/openai",
+  chatgpt: "llm/openai",
+  gpt: "llm/openai",
+  claude: "llm/claude",
+  anthropic: "llm/claude",
+  gemini: "llm/google",
+  deepmind: "llm/google",
+  llama: "companies/meta",
+};
+
+/**
+ * Detect brand in article title (title-only, case-insensitive)
+ * Returns folder path if brand found, null otherwise
+ */
+function detectBrandFolder(title: string): string | null {
+  if (!title) return null;
+  
+  const titleLower = title.toLowerCase();
+  
+  // Check each brand keyword
+  for (const [brand, folder] of Object.entries(BRAND_IMAGE_MAP)) {
+    if (titleLower.includes(brand)) {
+      return folder;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Find brand images in the given folder
+ * Returns array of image keys (filtered to .jpg only)
+ */
+function findBrandImages(folder: string, imageLibrary: string[]): string[] {
+  return imageLibrary.filter(key => 
+    key.startsWith(folder + '/') && 
+    key.toLowerCase().endsWith('.jpg')
+  );
+}
+
+/**
+ * Select a deterministic brand image from matches
+ * Uses title hash to ensure same article always gets same image
+ */
+function selectDeterministicBrandImage(title: string, brandImages: string[]): string {
+  if (brandImages.length === 1) {
+    return brandImages[0];
+  }
+  
+  // Hash function for deterministic selection
+  let hash = 0;
+  for (let i = 0; i < title.length; i++) {
+    const char = title.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const normalized = Math.abs(hash) / 2147483647;
+  
+  const index = Math.floor(normalized * brandImages.length);
+  return brandImages[index];
+}
+
 function isNonLatinTitle(title: string): boolean {
   let latinCount = 0;
   let nonLatinCount = 0;
@@ -245,6 +336,35 @@ async function selectUniqueImage(
     );
   }
   
+  // ============================================================================
+  // HARD BRAND IMAGE GATE (Title-Only, Pre-AI)
+  // ============================================================================
+  // If article title contains a known brand AND the brand folder exists with images,
+  // select a brand image immediately and skip AI selection.
+  // This ensures brand images are always used when appropriate.
+  
+  const brandFolder = detectBrandFolder(title);
+  
+  if (brandFolder) {
+    // Check if brand folder has available (unused) images
+    const brandImages = findBrandImages(brandFolder, availableImages);
+    
+    if (brandImages.length > 0) {
+      // Brand match + images exist → HARD GATE (skip AI)
+      const selectedKey = selectDeterministicBrandImage(title, brandImages);
+      const config = getResolverConfigFromEnv();
+      const imageUrl = resolveArticleImage(selectedKey, config);
+      
+      console.log(`   🏢 Brand gate: "${title.substring(0, 40)}..." → ${selectedKey}`);
+      
+      return imageUrl;
+    } else {
+      // Brand detected but no unused images in folder → fall through to AI
+      console.log(`   ⚠️  Brand detected (${brandFolder}) but no unused images, falling back to AI`);
+    }
+  }
+  
+  // No brand match OR no brand images available → proceed with AI selection
   const selectedImageUrl = await getArticleImageSingle(
     title, 
     description, 

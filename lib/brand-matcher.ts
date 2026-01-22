@@ -1,18 +1,18 @@
 /**
  * Brand-Aware Image Matching - Explicit Brand Detection
  * 
- * This module provides strict, deterministic brand matching for image selection.
- * Brand images are ONLY used when the brand name appears explicitly in both:
- * 1. The article title (case-insensitive)
- * 2. The image filename (case-insensitive)
+ * ⚠️  DEPRECATED: This module is NOT currently used in the codebase.
  * 
- * Rules:
- * - No fuzzy matching, no inference, no synonyms
- * - Exact string inclusion only
- * - Deterministic selection using hash when multiple matches exist
- * - Zero OpenAI calls
+ * The authoritative brand image gate is implemented in:
+ * - lib/rss-ingestion.ts (selectUniqueImage function)
+ * - Uses BRAND_IMAGE_MAP for brand-to-folder mapping
+ * - Executes before AI selection (hard gate)
  * 
- * Last Updated: 2026-01-04
+ * This file is kept for reference but should NOT be imported.
+ * If you need brand detection, use the implementation in rss-ingestion.ts.
+ * 
+ * Last Updated: 2026-01-22 (Marked as deprecated)
+ * Previous Update: 2026-01-04
  */
 
 /**
