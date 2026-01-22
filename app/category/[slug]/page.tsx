@@ -4,6 +4,7 @@ import NewsGrid from '@/components/NewsGrid';
 import MarketOverview from '@/components/MarketOverview';
 import { getCachedNewsData } from '@/lib/cache';
 import { getIngestionStatus } from '@/lib/ingestion-status';
+import { interleaveBySource } from '@/lib/article-diversity';
 import type { Metadata } from 'next';
 
 // Force dynamic rendering (no static generation, no ISR)
@@ -105,10 +106,13 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   // Filter by category
   const categoryNews = validNews.filter(item => item.category === category);
 
+  // Interleave by source for diversity (round-robin selection)
+  const interleavedNews = interleaveBySource(categoryNews);
+
   // Deduplicate images at render time: prefer articles with unique image URLs
   const seenImages = new Set<string>();
-  const filteredNews: typeof categoryNews = [];
-  for (const item of categoryNews) {
+  const filteredNews: typeof interleavedNews = [];
+  for (const item of interleavedNews) {
     if (!seenImages.has(item.image)) {
       seenImages.add(item.image);
       filteredNews.push(item);
