@@ -180,6 +180,53 @@ function extractAuthor(item: any, source: string): string {
   return source;
 }
 
+function isNonLatinTitle(title: string): boolean {
+  let latinCount = 0;
+  let nonLatinCount = 0;
+  
+  for (let i = 0; i < title.length; i++) {
+    const char = title[i];
+    const code = char.charCodeAt(0);
+    
+    // Check if alphabetic (ignore digits, punctuation, whitespace)
+    if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) {
+      // Latin letters (A-Z, a-z)
+      latinCount++;
+    } else if (
+      (code >= 192 && code <= 255) || // Extended Latin (accented)
+      (code >= 0x0100 && code <= 0x017F) || // Latin Extended-A
+      (code >= 0x0180 && code <= 0x024F) // Latin Extended-B
+    ) {
+      // Extended Latin (Spanish, French, German accents) - count as Latin
+      latinCount++;
+    } else if (
+      (code >= 0x0400 && code <= 0x04FF) || // Cyrillic
+      (code >= 0x4E00 && code <= 0x9FFF) || // CJK Unified Ideographs
+      (code >= 0x3040 && code <= 0x309F) || // Hiragana
+      (code >= 0x30A0 && code <= 0x30FF) || // Katakana
+      (code >= 0x0600 && code <= 0x06FF) || // Arabic
+      (code >= 0x0590 && code <= 0x05FF) || // Hebrew
+      (code >= 0x0370 && code <= 0x03FF) || // Greek
+      (code >= 0x0E00 && code <= 0x0E7F) || // Thai
+      (code >= 0x1100 && code <= 0x11FF) || // Hangul Jamo
+      (code >= 0xAC00 && code <= 0xD7AF) // Hangul Syllables
+    ) {
+      // Non-Latin scripts
+      nonLatinCount++;
+    }
+  }
+  
+  const totalAlphabetic = latinCount + nonLatinCount;
+  
+  // Accept short titles (likely acronyms or code)
+  if (totalAlphabetic < 5) {
+    return false;
+  }
+  
+  // Reject if non-Latin letters outnumber Latin letters
+  return nonLatinCount > latinCount;
+}
+
 async function selectUniqueImage(
   title: string,
   description: string,
@@ -230,6 +277,13 @@ async function fetchFeed(
       }
 
       const articleTitle = sanitizeTitle(item.title || 'Untitled');
+      
+      // Language guardrail: reject obviously non-Latin titles
+      if (isNonLatinTitle(articleTitle)) {
+        console.log(`   ⏭️  ${source}: Rejected non-latin-title: "${articleTitle.substring(0, 50)}"`);
+        continue;
+      }
+      
       const articleDescription = sanitizeDescription(item.contentSnippet || (item as any).description || '');
       const pubDateString = item.pubDate || item.isoDate || (item as any).published || (item as any).updated;
       const pubDate = parseRSSDate(pubDateString);
