@@ -34,3 +34,6 @@ curl -X POST "$URL" \
 echo ""
 echo "✅ Ingestion request sent"
 
+
+
+

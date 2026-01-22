@@ -252,3 +252,7 @@ const imageUrl = safeImage(article.image);
 
 **Impact:** Homepage now displays images correctly with no console errors.
 
+
+
+
+

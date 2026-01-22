@@ -79,3 +79,7 @@ export function allocateImagesGlobally<T extends ArticleWithCandidates>(
   return result;
 }
 
+
+
+
+
